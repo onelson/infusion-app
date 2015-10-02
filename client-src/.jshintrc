@@ -1,0 +1,10 @@
+{
+  "undef": true,
+  "unused": true,
+  "predef": [ "React" ],
+  "esnext": true,
+  "globalstrict": true,
+  "browser": true,
+  "browserify": true,
+  "quotmark": "single"
+}

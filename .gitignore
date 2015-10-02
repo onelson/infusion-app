@@ -8,3 +8,5 @@ target
 /.project
 /.settings
 /RUNNING_PID
+/client-src/dist
+node_modules
