@@ -9,6 +9,7 @@ scalaVersion := "2.11.7"
 libraryDependencies ++= Seq(
   jdbc,
   cache,
+  filters,
   ws,
   specs2 % Test
 )
@@ -38,5 +39,14 @@ scalacOptions ++= Seq(
   "-Xfuture"
 )
 
-wartremoverErrors ++= Warts.unsafe
+wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Var)
+wartremoverWarnings in (Compile, compile) ++= Seq(Wart.Var)
 
+val routesMain = settingKey[File]("")
+routesMain := target.value / "scala-2.11" / "routes" / "main"
+wartremoverExcluded ++= Seq(
+  routesMain.value / "controllers" / "ReverseRoutes.scala",
+  routesMain.value / "controllers" / "javascript" / "JavaScriptReverseRoutes.scala",
+  routesMain.value / "router" / "Routes.scala" ,
+  routesMain.value / "router" / "RoutesPrefix.scala"
+)
