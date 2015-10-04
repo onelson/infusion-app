@@ -61,14 +61,6 @@ function compile(watch) {
       console.log('-> bundling...');
       rebundle().pipe(reload({stream: true}));
     });
-
-    // https://github.com/gulpjs/gulp/issues/167
-    // prevent process from hanging during non-wathing-style builds
-    gulp.on('stop', function() {
-      process.nextTick(function() {
-        process.exit(0);
-      });
-    });
   }
  
   return rebundle();
@@ -77,6 +69,16 @@ function compile(watch) {
 function watch() {
   return compile(true);
 }
+
+gulp.task('halt', function(){
+  // https://github.com/gulpjs/gulp/issues/167
+  // prevent process from hanging during non-wathing-style builds
+  gulp.on('stop', function() {
+    process.nextTick(function() {
+      process.exit(0);
+    });
+  });
+});
  
 gulp.task('clean', function (callback) {
   rimraf(destDir, callback);
@@ -112,10 +114,18 @@ gulp.task('styles', function () {
 gulp.task('build', function (callback) {
   runSequence(
     'clean',
+    'halt',
     ['html', 'styles', 'js'],
     callback);
 });
- 
+
+gulp.task('build-watch', function (callback) {
+  runSequence(
+      'clean',
+      ['html', 'styles', 'js'],
+      callback);
+});
+
 gulp.task('browser-sync', function() {
     browserSync({
         server: destDir
@@ -126,7 +136,7 @@ gulp.task('browser-sync', function() {
 });
  
 gulp.task('serve', function (callback) {
-  runSequence('build', 'browser-sync', callback);
+  runSequence('build-watch', 'browser-sync', callback);
 });
  
 gulp.task('default', ['serve']);
