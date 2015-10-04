@@ -6,6 +6,8 @@ lazy val root = (project in file(".")).enablePlugins(PlayScala)
 
 scalaVersion := "2.11.7"
 
+logBuffered := false
+
 libraryDependencies ++= Seq(
   jdbc,
   cache,
@@ -50,3 +52,12 @@ wartremoverExcluded ++= Seq(
   routesMain.value / "router" / "Routes.scala" ,
   routesMain.value / "router" / "RoutesPrefix.scala"
 )
+
+
+lazy val buildClient = taskKey[Unit]("perform the client src build")
+
+buildClient := {
+  "./build-client.sh" !
+}
+
+dist <<= dist dependsOn buildClient

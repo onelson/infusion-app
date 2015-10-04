@@ -10,3 +10,5 @@ target
 /RUNNING_PID
 /client-src/dist
 node_modules
+/public/*
+npm-debug.log

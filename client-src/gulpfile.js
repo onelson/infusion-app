@@ -19,8 +19,10 @@ var babel = require('babelify'),
     sourcemaps = require('gulp-sourcemaps'),
     uglify = require('gulp-uglify'),
     watchify = require('watchify');
- 
- 
+
+//var destDir = './dist';
+var destDir = '../public';
+
 function compile(watch) {
   var bundler = watchify(
     browserify({
@@ -51,13 +53,21 @@ function compile(watch) {
       //.pipe(uglify())
  
       .pipe(sourcemaps.write('./'))
-      .pipe(gulp.dest('./dist/js'));
+      .pipe(gulp.dest(destDir + '/js'));
   }
  
   if (watch) {
     bundler.on('update', function() {
       console.log('-> bundling...');
       rebundle().pipe(reload({stream: true}));
+    });
+
+    // https://github.com/gulpjs/gulp/issues/167
+    // prevent process from hanging during non-wathing-style builds
+    gulp.on('stop', function() {
+      process.nextTick(function() {
+        process.exit(0);
+      });
     });
   }
  
@@ -69,7 +79,7 @@ function watch() {
 }
  
 gulp.task('clean', function (callback) {
-  rimraf('./dist', callback);
+  rimraf(destDir, callback);
 });
 
  
@@ -78,21 +88,11 @@ gulp.task('js', compile);
 gulp.task('html', function() {
   return gulp.src(
     'app/**/*.html')
-    .pipe(gulp.dest('dist'))
+    .pipe(gulp.dest(destDir))
     .pipe(reload({stream: true}));
 });
  
 
-//gulp.task('fa-fonts', function() {
-//  return gulp.src(
-//    'node_modules/font-awesome/fonts/**')
-//    .pipe(gulp.dest('dist/fonts/fa'));
-//});
- 
-
-// Probably a one time thing... fonts won't be changing but once on a blue moon.
-//gulp.task('fonts', ['fa-fonts']);
- 
 gulp.task('styles', function () {
   return gulp.src('app/styles/main.scss')
     .pipe(sourcemaps.init())
@@ -105,7 +105,7 @@ gulp.task('styles', function () {
     }).on('error', sass.logError))
     .pipe(postcss([autoprefixer({ browsers: ['last 2 versions'] })]))
     .pipe(sourcemaps.write('./'))
-    .pipe(gulp.dest('./dist/styles'))
+    .pipe(gulp.dest(destDir + '/styles'))
     .pipe(reload({stream: true}));
 });
  
@@ -118,7 +118,7 @@ gulp.task('build', function (callback) {
  
 gulp.task('browser-sync', function() {
     browserSync({
-        server: './dist'
+        server: destDir
     });
     gulp.watch('app/styles/**/*.scss', ['styles']);
     gulp.watch('app/*.html', ['html']);
@@ -130,4 +130,3 @@ gulp.task('serve', function (callback) {
 });
  
 gulp.task('default', ['serve']);
-
