@@ -2,7 +2,7 @@
 
 const React = require('react');
 const connectToStores = require('alt/utils/connectToStores');
-const { Router, Route, Link, NoMatch } = require('react-router');
+const { IndexRoute, Router, Route, Link, NoMatch } = require('react-router');
 const createBrowserHistory = require('history/lib/createBrowserHistory');
 const infusion = require('afc/infusion');
 
@@ -24,7 +24,6 @@ class App extends React.Component {
           <span className="left title">Infusion Solver</span>
         </div>
         {this.props.children}
-        <pre>{JSON.stringify(this.props, null, 2)}</pre>
       </div>
     );
   }
@@ -33,6 +32,7 @@ class App extends React.Component {
 
 const routes = (
   <Route path="/" component={App}>
+    <IndexRoute name="findPlayer" component={infusion.pages.FindPlayer}/>
     <Route name="userDetail" path="/user/:provider/:userId" component={infusion.pages.UserDetail}/>
     <Route path="*" component={NoMatch}/>
   </Route>);

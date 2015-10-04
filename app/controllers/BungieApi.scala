@@ -18,7 +18,7 @@ final case class Player(membershipId: String, displayName: String)
 class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
   val MembershipTypes = Seq("TigerPSN", "TigerXbox")
 
-  lazy val API_KEY =
+  val API_KEY =
     config.getString("afc.bungieApiKey").fold("")((key: String) => key)
 
   implicit val playerReads: Format[Player] = (
@@ -39,7 +39,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
   /**
    *
-   * @param membershipType Should be one of "TigerPSN" or "TigerXbox"
+   * @param membershipType Should be one of values in `MembershipTypes`
    * @param playerName Name of the player to find
    */
   def playerSearch(membershipType: String, playerName: String) = Action.async {
