@@ -1,7 +1,18 @@
-@(message: String)
+@()
 
-@main("Welcome to Play") {
+<!doctype html>
 
-    @play20.welcome(message)
-
-}
+<html class="no-js" lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link href="@routes.Assets.versioned("styles/main.css")" rel="stylesheet" />
+    </head>
+    <body>
+        <div id="app"></div>
+        <script src="@routes.Assets.versioned("js/bundle.js")"></script>
+        <script>
+    initApp(document.getElementById('app'));
+</script>
+    </body>
+</html>

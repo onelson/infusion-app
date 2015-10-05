@@ -21,7 +21,7 @@ var babel = require('babelify'),
     watchify = require('watchify');
 
 //var destDir = './dist';
-var destDir = '../public';
+var destDir = '../public/assets';
 
 function compile(watch) {
   var bundler = watchify(

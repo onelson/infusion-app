@@ -3,7 +3,7 @@
 # ~~~~
 
 # Home page
-GET     /                                           controllers.Assets.at(path="/public", file="index.html")
+GET     /                                           controllers.Application.index
 
 GET     /bng/player/:membershipTypeName/:displayName    controllers.BungieApi.playerSearch(membershipTypeName, displayName)
 

@@ -2,7 +2,7 @@ name := """infusion-app"""
 
 version := "1.0-SNAPSHOT"
 
-lazy val root = (project in file(".")).enablePlugins(PlayScala)
+lazy val root = (project in file(".")).enablePlugins(PlayScala, SbtWeb)
 
 scalaVersion := "2.11.7"
 
@@ -60,4 +60,6 @@ buildClient := {
   "./build-client.sh" !
 }
 
-dist <<= dist dependsOn buildClient
+stage <<= stage dependsOn buildClient
+
+herokuAppName in Compile := "immense-plateau-3425"
