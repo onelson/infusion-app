@@ -33,7 +33,7 @@ class App extends React.Component {
 const routes = (
   <Route path="/" component={App}>
     <IndexRoute name="findPlayer" component={infusion.pages.FindPlayer}/>
-    <Route name="userDetail" path="/user/:provider/:userId" component={infusion.pages.UserDetail}/>
+    <Route name="userDetail" path="/guardian/:userId" component={infusion.pages.UserDetail}/>
     <Route path="*" component={NoMatch}/>
   </Route>);
 

@@ -2,6 +2,9 @@
 
 const React = require('react/addons');
 const classNames = require('classnames');
+const { History } = require('react-router');
+const request = require('superagent');
+
 
 
 /** little placeholder handler for pages that are still TODO */
@@ -11,48 +14,48 @@ class Todo extends React.Component {
   }
 }
 
-const PSN = "TigerPSN";
-const Xbox = "TigerXbox";
+const PSN = "psn";
+const Xbox = "xbox";
 
-const MembershipTypes = {
+const Platforms = {
   PSN,
   Xbox
 };
 
 
 const SearchForm = React.createClass({
-  mixins: [React.addons.LinkedStateMixin],
+  mixins: [React.addons.LinkedStateMixin, History],
   getInitialState() {
     return {
-      displayName: "",
-      membershipType: MembershipTypes.PSN
+      playerName: "",
+      platform: Platforms.PSN
     }
   },
-  changeMembership(membershipType) {
+  changePlatform(platform) {
     const form = this;
     return function() {
-      form.setState({membershipType: membershipType});
+      form.setState({platform: platform});
     };
   },
-  onSubmit() {
+  onSubmit(event) {
+    event.preventDefault();
     // TODO: query backend and get user id from bungie
-    this.history.pushState(); // TODO
+    this.history.pushState({userId: 'XXX'}, `/guardian/${this.state.playerName}`);
   },
   render() {
    return (
        <form onSubmit={this.onSubmit}>
          <ul className="button-group secondary segmented">
-           <li className={classNames({"is-active": this.state.membershipType === MembershipTypes.PSN})}>
+           <li className={classNames({"is-active": this.state.platform === Platforms.PSN})}>
              <a href="#"
-                  onClick={this.changeMembership(MembershipTypes.PSN)}>PSN</a></li>
-           <li className={classNames({"is-active": this.state.membershipType === MembershipTypes.Xbox})}>
+                  onClick={this.changePlatform(Platforms.PSN)}>PSN</a></li>
+           <li className={classNames({"is-active": this.state.platform === Platforms.Xbox})}>
              <a href="#"
-                  className={classNames({"is-active": this.state.membershipType === MembershipTypes.Xbox})}
-                  onClick={this.changeMembership(MembershipTypes.Xbox)}>XBox</a></li>
+                  className={classNames({"is-active": this.state.platform === Platforms.Xbox})}
+                  onClick={this.changePlatform(Platforms.Xbox)}>XBox</a></li>
          </ul>
-         <input type="text" valueLink={this.linkState("displayName")}/>
+         <input type="text" valueLink={this.linkState("playerName")}/>
          <input type="submit" value="Search" className="button" />
-         <pre>{JSON.stringify(this.state, 2)}</pre>
        </form>
    );
   }

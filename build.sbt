@@ -61,5 +61,4 @@ buildClient := {
 }
 
 stage <<= stage dependsOn buildClient
-
 herokuAppName in Compile := "immense-plateau-3425"
