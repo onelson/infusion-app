@@ -21,7 +21,7 @@ class App extends React.Component {
     return (
       <div>
         <div className="title-bar">
-          <span className="left title">Infusion Solver</span>
+          <span className="left title"><Link to="/">Infusion Solver</Link></span>
         </div>
         {this.props.children}
       </div>
@@ -33,7 +33,11 @@ class App extends React.Component {
 const routes = (
   <Route path="/" component={App}>
     <IndexRoute name="findPlayer" component={infusion.pages.FindPlayer}/>
-    <Route name="userDetail" path="/guardian/:userId" component={infusion.pages.UserDetail}/>
+
+    <Route name="userDetail"
+           path="/guardian/:userId/:playerName"
+           component={infusion.pages.UserDetail}/>
+
     <Route path="*" component={NoMatch}/>
   </Route>);
 

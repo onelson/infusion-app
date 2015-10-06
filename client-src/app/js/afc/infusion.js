@@ -28,7 +28,8 @@ const SearchForm = React.createClass({
   getInitialState() {
     return {
       playerName: "",
-      platform: Platforms.PSN
+      platform: Platforms.PSN,
+      notFound: false
     }
   },
   changePlatform(platform) {
@@ -39,24 +40,40 @@ const SearchForm = React.createClass({
   },
   onSubmit(event) {
     event.preventDefault();
-    // TODO: query backend and get user id from bungie
-    this.history.pushState({userId: 'XXX'}, `/guardian/${this.state.playerName}`);
+    request
+        .get(`${global.BACKEND_HOST || ''}/bng/player-search/${this.state.platform}/${this.state.playerName}`)
+        .end((err, resp) => {
+          if(err && err.status === 404) {
+            this.setState({notFound: true});
+          } else if (err) {
+            // TODO
+          } else {
+            this.history.pushState(
+                {userId: resp.body.membershipId},
+                `/guardian/${resp.body.membershipId}/${resp.body.displayName}`);
+          }
+
+        });
   },
   render() {
    return (
-       <form onSubmit={this.onSubmit}>
-         <ul className="button-group secondary segmented">
-           <li className={classNames({"is-active": this.state.platform === Platforms.PSN})}>
-             <a href="#"
-                  onClick={this.changePlatform(Platforms.PSN)}>PSN</a></li>
-           <li className={classNames({"is-active": this.state.platform === Platforms.Xbox})}>
-             <a href="#"
-                  className={classNames({"is-active": this.state.platform === Platforms.Xbox})}
-                  onClick={this.changePlatform(Platforms.Xbox)}>XBox</a></li>
-         </ul>
-         <input type="text" valueLink={this.linkState("playerName")}/>
-         <input type="submit" value="Search" className="button" />
-       </form>
+       <div>
+         <h2>Load your gear.</h2>
+         <form onSubmit={this.onSubmit} className="inline-label">
+           <ul className="button-group secondary segmented">
+             <li className={classNames({"is-active": this.state.platform === Platforms.PSN})}>
+               <a href="#"
+                    onClick={this.changePlatform(Platforms.PSN)}>PSN</a></li>
+             <li className={classNames({"is-active": this.state.platform === Platforms.Xbox})}>
+               <a href="#"
+                    className={classNames({"is-active": this.state.platform === Platforms.Xbox})}
+                    onClick={this.changePlatform(Platforms.Xbox)}>XBox</a></li>
+           </ul>
+           <input type="text" valueLink={this.linkState("playerName")} placeholder="Gamertag"/>
+           <input type="submit" value="Search" className="button" />
+         </form>
+         {this.state.notFound ? <p>Aww, snap! We couldn't find your guardian.</p> : ''}
+       </div>
    );
   }
 });
@@ -68,10 +85,19 @@ const FindPlayer = React.createClass({
   }
 });
 
+const UserDetail = React.createClass({
+  render() {
+    return (
+      <div>
+        <pre>{JSON.stringify(this.props.params, 4)}</pre>
+      </div>);
+  }
+});
+
 
 module.exports = {
   pages: {
     FindPlayer,
-    UserDetail: Todo
+    UserDetail
   }
 };
