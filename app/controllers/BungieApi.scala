@@ -16,7 +16,7 @@ import scala.concurrent.{Future, ExecutionContext}
 final case class Player(membershipId: String, displayName: String)
 
 class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
-  val MembershipTypes = Seq("TigerPSN", "TigerXbox")
+  val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
 
   val API_KEY =
     config.getString("afc.bungieApiKey").fold("")((key: String) => key)
@@ -39,18 +39,19 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
   /**
    *
-   * @param membershipType Should be one of values in `MembershipTypes`
+   * @param platform Should be one of keys in `membershipTypes`
    * @param playerName Name of the player to find
    */
-  def playerSearch(membershipType: String, playerName: String) = Action.async {
-    if (!MembershipTypes.contains(membershipType)) {
-      Future.successful(BadRequest("Invalid Membership Type"))
-    } else fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").map {
-      response: WSResponse =>
-        (response.json \ "Response" ).as[Seq[Player]].headOption match {
-          case Some(player) => Ok(Json.toJson(player))
-          case _ => NotFound("Player not found.")
-        }
+  def playerSearch(platform: String, playerName: String) = Action.async {
+    membershipTypes.get(platform) match {
+      case Some(membershipType) => fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").map {
+        response: WSResponse =>
+          (response.json \ "Response" ).as[Seq[Player]].headOption match {
+            case Some(player) => Ok(Json.toJson(player))
+            case _ => NotFound("Player not found.")
+          }
       }
+      case _ => Future.successful(BadRequest("Invalid Membership Type"))
+    }
   }
 }
