@@ -11,25 +11,30 @@ import play.api.libs.ws.{WSResponse, WSClient}
 import play.api.Logger
 import slick.jdbc.GetResult
 
-
 import scala.concurrent.{Future, ExecutionContext}
 
 
 final case class Player(membershipId: String, displayName: String)
-
-
 final case class Item(json: String)
 final case class Weapon(id: Int, json: String)
 final case class Armor(id: Int, json: String)
 
-object BungieDB {
+
+class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
+
+  val API_KEY =
+    config.getString("afc.bungieApiKey").fold("")((v: String) => v)
+  val DATA_DIR  =
+    config.getString("afc.bungieDataDir").fold("")((v: String) => v)
+
+  val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
+
   import slick.driver.SQLiteDriver.api._
   implicit val getItemResult:GetResult[Item] =
     GetResult(r => Item(r.nextString))
 
-
-  val dbfile = "world_sql_content_ff0841056879dd1652679d51d6632e78.content"
-
+  val dbfile = s"${DATA_DIR}world_sql_content_ff0841056879dd1652679d51d6632e78.content"
+  Logger.debug(dbfile)
   val db = Database.forURL(s"jdbc:sqlite:$dbfile")
 
   def getItems = {
@@ -40,16 +45,7 @@ object BungieDB {
   var weaponInfo = Map[Int, Weapon]()
   var armorInfo = Map[Int, Armor]()
 
-}
 
-
-class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
-
-
-  val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
-
-  val API_KEY =
-    config.getString("afc.bungieApiKey").fold("")((key: String) => key)
 
   implicit val playerReads: Format[Player] = (
     (JsPath \ "membershipId").format[String] and
@@ -65,7 +61,6 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     ws.url(url)
       .withHeaders("X-API-Key" -> API_KEY).get()
   }
-
 
   /**
    *
@@ -86,8 +81,8 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   }
 
   def dbtest = Action.async {
-    BungieDB.getItems.map {
-      items => Ok(items.mkString("\n\n"))
+    getItems.map {
+      items => Ok(Json.toJson(for (i <- items) yield Json.parse(i.json)))
     }
   }
 

@@ -12,3 +12,4 @@ target
 node_modules
 /public/*
 npm-debug.log
+/bungie-db

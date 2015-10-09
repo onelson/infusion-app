@@ -68,10 +68,13 @@ stage <<= stage dependsOn buildClient
 
 herokuAppName in Compile := "immense-plateau-3425"
 
+herokuIncludePaths in Compile := Seq(
+  "app", "conf/routes", "public/", "bungie-db"
+)
+
 
 // runs `gulp watch` in the client-src dir when running the app via `sbt run`
 import Gulp._
 import play.PlayImport.PlayKeys.playRunHooks
 
 playRunHooks <+= (baseDirectory / "client-src").map(base => Gulp(base))
-
