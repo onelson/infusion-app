@@ -13,7 +13,9 @@ libraryDependencies ++= Seq(
   cache,
   filters,
   ws,
-  specs2 % Test
+  specs2 % Test,
+  "org.xerial" % "sqlite-jdbc" % "3.8.11.2",
+  "com.typesafe.slick" %% "slick" % "3.0.3"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"
