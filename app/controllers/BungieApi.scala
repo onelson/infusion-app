@@ -38,7 +38,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   val db = Database.forURL(s"jdbc:sqlite:$dbfile")
 
   def getItems = {
-    val query = sql"select json from DestinyInventoryItemDefinition".as[Item]
+    val query = sql"select json from DestinyInventoryItemDefinition limit 100".as[Item]
     db.run(query)
   }
 
