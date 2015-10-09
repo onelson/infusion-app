@@ -1,0 +1,32 @@
+import java.net.InetSocketAddress
+
+import play.sbt.PlayRunHook
+import sbt._
+
+
+object Gulp {
+
+  def apply(base: File): PlayRunHook = {
+
+    object GulpProcess extends PlayRunHook {
+
+      var process: Option[Process] = None
+
+      override def beforeStarted(): Unit = {
+        Process("npm install", base).run
+        Process("node_modules/.bin/gulp build", base).run
+      }
+
+      override def afterStarted(addr: InetSocketAddress): Unit = {
+        process = Some(Process("node_modules/.bin/gulp watch", base).run)
+      }
+
+      override def afterStopped(): Unit = {
+        process.foreach(p => p.destroy())
+        process = None
+      }
+    }
+
+    GulpProcess
+  }
+}

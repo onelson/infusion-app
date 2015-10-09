@@ -13,9 +13,11 @@ class App extends React.Component {
   static getStores() {
     return [];
   }
+
   static getPropsFromStores() {
     return {};
   }
+
   render() {
 
     return (

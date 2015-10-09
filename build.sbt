@@ -56,6 +56,7 @@ wartremoverExcluded ++= Seq(
 )
 
 
+
 lazy val buildClient = taskKey[Unit]("perform the client src build")
 
 buildClient := {
@@ -63,4 +64,14 @@ buildClient := {
 }
 
 stage <<= stage dependsOn buildClient
+
+
 herokuAppName in Compile := "immense-plateau-3425"
+
+
+// runs `gulp watch` in the client-src dir when running the app via `sbt run`
+import Gulp._
+import play.PlayImport.PlayKeys.playRunHooks
+
+playRunHooks <+= (baseDirectory / "client-src").map(base => Gulp(base))
+
