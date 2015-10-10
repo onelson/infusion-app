@@ -7,9 +7,6 @@ import play.api.Configuration
 import play.api.mvc.{Action, Controller}
 
 import play.api.libs.json._
-import play.api.libs.json.Reads._
-import play.api.libs.json.Writes._
-import play.api.libs.json.Format._
 import play.api.libs.functional.syntax._
 import play.api.libs.ws.{WSResponse, WSClient}
 import play.api.Logger
@@ -24,30 +21,27 @@ final case class DbItem(raw: String) {
 
 final case class ItemSummary(
     itemHash: Long,
-    bucketHash: Long,
+    bucketHash: Option[Long],
     isGridComplete: Boolean,
     value: Int,  // get from primaryStat.value,
-    damageType: Int,
-    quality: Int
+    damageType: Int
 )
 
 object ItemSummary {
   implicit val itemSummaryWrites: Writes[ItemSummary] = (
     (JsPath \ "itemHash").write[Long] and
-    (JsPath \ "bucketHash").write[Long] and
+    (JsPath \ "bucketHash").writeNullable[Long] and
     (JsPath \ "isGridComplete").write[Boolean] and
     (JsPath \ "value").write[Int] and
-    (JsPath \ "damageType").write[Int] and
-    (JsPath \ "quality").write[Int]
+    (JsPath \ "damageType").write[Int]
   )(unlift(ItemSummary.unapply))
 
   implicit val itemSummaryReads: Reads[ItemSummary] = (
     (JsPath \ "itemHash").read[Long] and
-    (JsPath \ "bucketHash").read[Long] and
+    (JsPath \ "bucketHash").readNullable[Long] and
     (JsPath \ "isGridComplete").read[Boolean] and
     (JsPath \ "primaryStat" \"value").read[Int] and
-    (JsPath \ "damageType").read[Int] and
-    (JsPath \ "quality").read[Int]
+    (JsPath \ "damageType").read[Int]
   )(ItemSummary.apply _)
 }
 
@@ -60,8 +54,6 @@ object Toon {
     (JsPath \ "membershipType").format[Int]
   )(Toon.apply, unlift(Toon.unapply))
 }
-
-final case class InventorySlot(bucketHash: Long, items: Seq[ItemSummary])
 
 object Buckets {
 
@@ -91,6 +83,8 @@ object Buckets {
 
   val VaultArmor = 3003523923l
   val VaultWeapon = 4046403665l
+
+  val VaultSlots = Seq(VaultArmor, VaultWeapon)
 
 }
 
@@ -167,16 +161,29 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       case Some(membershipType) =>
         fetch(s"/$membershipType/Account/$membershipId/Summary/").flatMap {
           response: WSResponse => {
-            val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[Toon]]
-            val vaultItems = (response.json \ "Response" \ "data" \ "inventory" \ "items").as[Seq[ItemSummary]]
+            val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+            val vaultItems = (response.json \ "Response" \ "data" \ "inventory" \ "items")
+              .as[Seq[JsValue]]
+              .map(js => js.asOpt[ItemSummary])
+              .filter {
+                case Some(item) => Buckets.VaultSlots.contains(item.bucketHash)
+                case _ => false
+              }
+              .map(_.get)
 
             val toonGear = toons.map { t =>
               fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").map {
                 resp: WSResponse => {
+                  val equippable = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable").as[Seq[JsValue]]
+                  val interstingItems = equippable
+                      .map((js: JsValue) => (js \ "bucketHash").as[Long])
+                      .zipWithIndex
+                      .filter { pair => Buckets.InventorySlots.contains(pair._1) }.map(_._2)
+
                   Gearset(t.characterId,
-                    items = (resp.json \ "data" \ "buckets" \ "Equippable").as[Seq[InventorySlot]]
-                      .filter(slot => Buckets.InventorySlots.contains(slot.bucketHash))
-                      .flatMap(slot => slot.items)
+                    items = interstingItems.flatMap {
+                      idx => (equippable(idx) \ "items").as[Seq[ItemSummary]]
+                    }
                   )
                 }
               }
@@ -208,7 +215,7 @@ final case class Gearset(
     special: Seq[ItemSummary],
     heavy: Seq[ItemSummary],
     ghost: Seq[ItemSummary])
-  
+
 object Gearset {
   def apply(owner: String, items: Seq[ItemSummary]) = {
     val groups = items.groupBy(_.bucketHash)
