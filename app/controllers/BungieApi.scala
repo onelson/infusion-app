@@ -23,9 +23,12 @@ final case class Armor(id: Int, json: String)
 
 
 object Buckets {
+
   val ChestArmor = 14239492l
+  val ArmArmor = 3551918588l
   val LegArmor = 20886954l
   val ClassArmor = 1585787867l
+  val Artifacts = 434908299l
 
   val PrimaryWeapon = 1498876634l
   val SpecialWeapon = 2465295065l
@@ -34,6 +37,7 @@ object Buckets {
 
   val VaultArmor = 3003523923l
   val VaultWeapon = 4046403665l
+
 }
 
 
