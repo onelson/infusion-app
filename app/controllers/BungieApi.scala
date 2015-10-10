@@ -1,11 +1,11 @@
 package controllers
 
 import javax.inject.Inject
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.Future
 
 import play.api.Configuration
 import play.api.mvc.{Action, Controller}
-
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
 import play.api.libs.ws.{WSResponse, WSClient}
@@ -17,11 +17,12 @@ import slick.jdbc.GetResult
 final case class Player(membershipId: String, displayName: String)
 final case class DbItem(raw: String) {
   val json = Json.parse(raw)
+  val itemHash: Long = (json \ "itemHash").as[Long]
+  val bucketTypeHash: Long = (json \ "bucketTypeHash").as[Long]
 }
 
 final case class ItemSummary(
     itemHash: Long,
-    bucketHash: Option[Long],
     isGridComplete: Boolean,
     value: Int,  // get from primaryStat.value,
     damageType: Int
@@ -30,7 +31,6 @@ final case class ItemSummary(
 object ItemSummary {
   implicit val itemSummaryWrites: Writes[ItemSummary] = (
     (JsPath \ "itemHash").write[Long] and
-    (JsPath \ "bucketHash").writeNullable[Long] and
     (JsPath \ "isGridComplete").write[Boolean] and
     (JsPath \ "value").write[Int] and
     (JsPath \ "damageType").write[Int]
@@ -38,12 +38,47 @@ object ItemSummary {
 
   implicit val itemSummaryReads: Reads[ItemSummary] = (
     (JsPath \ "itemHash").read[Long] and
-    (JsPath \ "bucketHash").readNullable[Long] and
     (JsPath \ "isGridComplete").read[Boolean] and
     (JsPath \ "primaryStat" \"value").read[Int] and
     (JsPath \ "damageType").read[Int]
   )(ItemSummary.apply _)
 }
+
+final case class ItemDetail(
+    summary: ItemSummary,
+    bucketTypeHash: Long,
+    tierType: Int,
+    tierTypeName: String,
+    itemName: String,
+    icon: String,
+    qualityLevel: Int
+)
+
+object ItemDetail {
+  def apply(summary: ItemSummary)(implicit dbItems: Map[Long, DbItem]) = {
+    val dbData = dbItems(summary.itemHash)
+    new ItemDetail(
+      summary=summary,
+      bucketTypeHash=dbData.bucketTypeHash,
+      tierType=(dbData.json \ "tierType").as[Int],
+      tierTypeName=(dbData.json \ "tierTypeName").as[String],
+      itemName=(dbData.json \ "itemName").as[String],
+      icon=(dbData.json \ "icon").as[String],
+      qualityLevel=(dbData.json \ "qualityLevel").as[Int])
+  }
+
+  implicit val writes: Writes[ItemDetail] = (
+    (JsPath \ "summary").write[ItemSummary] and
+    (JsPath \ "bucketTypeHash").write[Long] and
+    (JsPath \ "tierType").write[Int] and
+    (JsPath \ "tierTypeName").write[String] and
+    (JsPath \ "itemName").write[String] and
+    (JsPath \ "icon").write[String] and
+    (JsPath \ "qualityLevel").write[Int]
+  )(unlift(ItemDetail.unapply))
+
+}
+
 
 final case class Toon(membershipId: String, characterId: String, membershipType: Int)
 
@@ -110,13 +145,16 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     db.run(query)
   }
 
+  implicit val dbItems: Future[Map[Long, DbItem]] = getItems.map { (items: Seq[DbItem]) =>
+      items
+        .filter(i => Buckets.InventorySlots.contains(i.bucketTypeHash))
+        .map(i => (i.itemHash, i)).toMap[Long, DbItem]
+    }
+
   implicit val playerReads: Format[Player] = (
     (JsPath \ "membershipId").format[String] and
     (JsPath \ "displayName").format[String]
   )(Player.apply, unlift(Player.unapply))
-
-  implicit val context: ExecutionContext =
-    play.api.libs.concurrent.Execution.Implicits.defaultContext
 
   def fetch(path: String) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
@@ -164,45 +202,41 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
             val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
 
-            val vaultItems = (response.json \ "Response" \ "data" \ "inventory" \ "items")
-              .as[Seq[JsValue]]
-              .map(js => js.asOpt[ItemSummary])
-              .filter(_.isDefined)
-              .map(_.get)
+            val vaultGear = dbItems.map { implicit dbi =>
+                val items = (response.json \ "Response" \ "data" \ "inventory" \ "items")
+                  .as[Seq[JsValue]]
+                  .map(js => js.asOpt[ItemSummary])
+                  .filter(_.isDefined)
+                  .map { case Some(summary) => ItemDetail(summary) }.groupBy(_.bucketTypeHash)
+              Gearset("vault", items)
+            }
+
 
             val toonGear = toons.map { t =>
-              fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").map {
+              fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").flatMap {
                 resp: WSResponse => {
                   val equippable = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable").as[Seq[JsValue]]
-                  val items = equippable
-                      .map {(js: JsValue) => {
-                          val bucket = (js \ "bucketHash").as[Long]
-                          val items = (js \ "items").as[Seq[JsValue]]
-                          (bucket, items)
-                        }
-                      }
-                      .filter { pair => Buckets.InventorySlots.contains(pair._1) }.toMap
 
-                  Gearset(t.characterId,
-                    helmet = extractItems(items.get(Buckets.Helmet)),
-                    chest = extractItems(items.get(Buckets.Chest)),
-                    arms = extractItems(items.get(Buckets.Arms)),
-                    boots = extractItems(items.get(Buckets.Boots)),
-                    classItem = extractItems(items.get(Buckets.ClassItem)),
-                    artifact = extractItems(items.get(Buckets.Artifact)),
-                    primary = extractItems(items.get(Buckets.PrimaryWeapon)),
-                    special = extractItems(items.get(Buckets.SpecialWeapon)),
-                    heavy = extractItems(items.get(Buckets.HeavyWeapon)),
-                    ghost = extractItems(items.get(Buckets.Ghost))
-                  )
+                   dbItems.map { implicit db =>
+                     val items = equippable.map(
+                      (js: JsValue) => {
+                        val bucket = (js \ "bucketHash").as[Long]
+                        val items = (js \ "items").as[Seq[JsValue]]
+                        (bucket, items)
+                      }).filter {
+                      pair => Buckets.InventorySlots.contains(pair._1)
+                    }.map(pair => (pair._1, pair._2.map(js => ItemDetail(js.as[ItemSummary])))
+                    ).toMap[Long, Seq[ItemDetail]]
+                    Gearset(t.characterId, items)
+                  }
                 }
               }
             }
 
-            Future.sequence(toonGear).map(toons => Ok(
+            Future.sequence(vaultGear +: toonGear).map(gearsets => Ok(
               Json.obj(
-                "toons" -> Json.toJson(toons)
-//                "vault" -> Json.toJson(Gearset("", items = vaultItems))
+                "vault" -> Json.toJson(gearsets.head),
+                "toons" -> Json.toJson(gearsets.tail)
               )
             ))
 
@@ -211,41 +245,51 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       case _ => Future.successful(BadRequest("Invalid Membership Type"))
     }
   }
-
-  def extractItems(maybeItems: Option[Seq[JsValue]]): Seq[ItemSummary] = maybeItems.map {
-    data => data.map(_.as[ItemSummary])
-  }.getOrElse(Nil)
-
 }
 
 
 final case class Gearset(
     owner: String,
-    helmet: Seq[ItemSummary],
-    chest: Seq[ItemSummary],
-    arms: Seq[ItemSummary],
-    boots: Seq[ItemSummary],
-    classItem: Seq[ItemSummary],
-    artifact: Seq[ItemSummary],
-    primary: Seq[ItemSummary],
-    special: Seq[ItemSummary],
-    heavy: Seq[ItemSummary],
-    ghost: Seq[ItemSummary])
+    helmet: Seq[ItemDetail],
+    chest: Seq[ItemDetail],
+    arms: Seq[ItemDetail],
+    boots: Seq[ItemDetail],
+    classItem: Seq[ItemDetail],
+    artifact: Seq[ItemDetail],
+    primary: Seq[ItemDetail],
+    special: Seq[ItemDetail],
+    heavy: Seq[ItemDetail],
+    ghost: Seq[ItemDetail])
 
 
 object Gearset {
-  implicit val gearsetWrites: Writes[Gearset] = (
+
+  def apply(owner: String, items: Map[Long, Seq[ItemDetail]]) = new Gearset(
+    owner,
+    helmet = items.getOrElse(Buckets.Helmet, Nil),
+    chest = items.getOrElse(Buckets.Chest, Nil),
+    arms = items.getOrElse(Buckets.Arms, Nil),
+    boots = items.getOrElse(Buckets.Boots, Nil),
+    classItem = items.getOrElse(Buckets.ClassItem, Nil),
+    artifact = items.getOrElse(Buckets.Artifact, Nil),
+    primary = items.getOrElse(Buckets.PrimaryWeapon, Nil),
+    special = items.getOrElse(Buckets.SpecialWeapon, Nil),
+    heavy = items.getOrElse(Buckets.HeavyWeapon, Nil),
+    ghost = items.getOrElse(Buckets.Ghost, Nil)
+  )
+
+  implicit val writes: Writes[Gearset] = (
     (JsPath \ "owner").write[String] and
-    (JsPath \ "helmet").write[Seq[ItemSummary]] and
-    (JsPath \ "chest").write[Seq[ItemSummary]] and
-    (JsPath \ "arms").write[Seq[ItemSummary]] and
-    (JsPath \ "boots").write[Seq[ItemSummary]] and
-    (JsPath \ "classItem").write[Seq[ItemSummary]] and
-    (JsPath \ "artifact").write[Seq[ItemSummary]] and
-    (JsPath \ "primaryWeapon").write[Seq[ItemSummary]] and
-    (JsPath \ "specialWeapon").write[Seq[ItemSummary]] and
-    (JsPath \ "heavyWeapon").write[Seq[ItemSummary]] and
-    (JsPath \ "ghost").write[Seq[ItemSummary]]
+    (JsPath \ "helmet").write[Seq[ItemDetail]] and
+    (JsPath \ "chest").write[Seq[ItemDetail]] and
+    (JsPath \ "arms").write[Seq[ItemDetail]] and
+    (JsPath \ "boots").write[Seq[ItemDetail]] and
+    (JsPath \ "classItem").write[Seq[ItemDetail]] and
+    (JsPath \ "artifact").write[Seq[ItemDetail]] and
+    (JsPath \ "primaryWeapon").write[Seq[ItemDetail]] and
+    (JsPath \ "specialWeapon").write[Seq[ItemDetail]] and
+    (JsPath \ "heavyWeapon").write[Seq[ItemDetail]] and
+    (JsPath \ "ghost").write[Seq[ItemDetail]]
   )(unlift(Gearset.unapply))
 
 }
