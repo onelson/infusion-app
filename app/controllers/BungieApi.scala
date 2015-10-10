@@ -15,9 +15,26 @@ import scala.concurrent.{Future, ExecutionContext}
 
 
 final case class Player(membershipId: String, displayName: String)
-final case class Item(json: String)
+final case class Item(raw: String) {
+  val json = Json.parse(raw)
+}
 final case class Weapon(id: Int, json: String)
 final case class Armor(id: Int, json: String)
+
+
+object Buckets {
+  val ChestArmor = 14239492l
+  val LegArmor = 20886954l
+  val ClassArmor = 1585787867l
+
+  val PrimaryWeapon = 1498876634l
+  val SpecialWeapon = 2465295065l
+  val HeavyWeapon = 953998645l
+  val Ghost = 4023194814l
+
+  val VaultArmor = 3003523923l
+  val VaultWeapon = 4046403665l
+}
 
 
 class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
@@ -26,6 +43,8 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     config.getString("afc.bungieApiKey").fold("")((v: String) => v)
   val DATA_DIR  =
     config.getString("afc.bungieDataDir").fold("")((v: String) => v)
+  val DB_FILE  =
+    config.getString("afc.bungieDbFile").fold("")((v: String) => v)
 
   val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
 
@@ -33,19 +52,12 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   implicit val getItemResult:GetResult[Item] =
     GetResult(r => Item(r.nextString))
 
-  val dbfile = s"${DATA_DIR}world_sql_content_ff0841056879dd1652679d51d6632e78.content"
-  Logger.debug(dbfile)
-  val db = Database.forURL(s"jdbc:sqlite:$dbfile")
+  val db = Database.forURL(s"jdbc:sqlite:$DATA_DIR$DB_FILE")
 
   def getItems = {
-    val query = sql"select json from DestinyInventoryItemDefinition limit 100".as[Item]
+    val query = sql"select json from DestinyInventoryItemDefinition".as[Item]
     db.run(query)
   }
-
-  var weaponInfo = Map[Int, Weapon]()
-  var armorInfo = Map[Int, Armor]()
-
-
 
   implicit val playerReads: Format[Player] = (
     (JsPath \ "membershipId").format[String] and
@@ -63,7 +75,6 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   }
 
   /**
-   *
    * @param platform Should be one of keys in `membershipTypes`
    * @param playerName Name of the player to find
    */
@@ -82,8 +93,19 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
   def dbtest = Action.async {
     getItems.map {
-      items => Ok(Json.toJson(for (i <- items) yield Json.parse(i.json)))
+      (items: Seq[Item]) =>
+        val groups = items.groupBy((item: Item) => (item.json \ "bucketTypeHash").get.toString())
+
+        val buckets: Map[String, JsArray] = groups.map {
+//          case (k, v) => (k.toString, Json.arr(v.map(_.json)))
+          case (k, v) => (k.toString, Json.arr(v.map((i: Item) => (i.json \ "itemTypeName").getOrElse(JsNull)).distinct))
+        }
+
+        Ok(Json.toJson(buckets))
     }
+//    getItems.map {
+//      items => Ok(Json.toJson(for (i <- items) yield i.json))
+//    }
   }
 
 //  def inventory(platform: String, membershipId: Int) = Action.async {

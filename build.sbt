@@ -43,8 +43,8 @@ scalacOptions ++= Seq(
   "-Xfuture"
 )
 
-wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Var)
-wartremoverWarnings in (Compile, compile) ++= Seq(Wart.Var)
+wartremoverErrors in (Compile, compile) ++= Warts.allBut(Wart.Var, Wart.Throw)
+wartremoverWarnings in (Compile, compile) ++= Seq(Wart.Var, Wart.Throw)
 
 val routesMain = settingKey[File]("")
 routesMain := target.value / "scala-2.11" / "routes" / "main"
