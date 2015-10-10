@@ -161,29 +161,39 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       case Some(membershipType) =>
         fetch(s"/$membershipType/Account/$membershipId/Summary/").flatMap {
           response: WSResponse => {
+
             val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+
             val vaultItems = (response.json \ "Response" \ "data" \ "inventory" \ "items")
               .as[Seq[JsValue]]
               .map(js => js.asOpt[ItemSummary])
-              .filter {
-                case Some(item) => Buckets.VaultSlots.contains(item.bucketHash)
-                case _ => false
-              }
+              .filter(_.isDefined)
               .map(_.get)
 
             val toonGear = toons.map { t =>
               fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").map {
                 resp: WSResponse => {
                   val equippable = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable").as[Seq[JsValue]]
-                  val interstingItems = equippable
-                      .map((js: JsValue) => (js \ "bucketHash").as[Long])
-                      .zipWithIndex
-                      .filter { pair => Buckets.InventorySlots.contains(pair._1) }.map(_._2)
+                  val items = equippable
+                      .map {(js: JsValue) => {
+                          val bucket = (js \ "bucketHash").as[Long]
+                          val items = (js \ "items").as[Seq[JsValue]]
+                          (bucket, items)
+                        }
+                      }
+                      .filter { pair => Buckets.InventorySlots.contains(pair._1) }.toMap
 
                   Gearset(t.characterId,
-                    items = interstingItems.flatMap {
-                      idx => (equippable(idx) \ "items").as[Seq[ItemSummary]]
-                    }
+                    helmet = extractItems(items.get(Buckets.Helmet)),
+                    chest = extractItems(items.get(Buckets.Chest)),
+                    arms = extractItems(items.get(Buckets.Arms)),
+                    boots = extractItems(items.get(Buckets.Boots)),
+                    classItem = extractItems(items.get(Buckets.ClassItem)),
+                    artifact = extractItems(items.get(Buckets.Artifact)),
+                    primary = extractItems(items.get(Buckets.PrimaryWeapon)),
+                    special = extractItems(items.get(Buckets.SpecialWeapon)),
+                    heavy = extractItems(items.get(Buckets.HeavyWeapon)),
+                    ghost = extractItems(items.get(Buckets.Ghost))
                   )
                 }
               }
@@ -191,8 +201,8 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
             Future.sequence(toonGear).map(toons => Ok(
               Json.obj(
-                "toons" -> Json.toJson(toons),
-                "vault" -> Json.toJson(Gearset("", items = vaultItems))
+                "toons" -> Json.toJson(toons)
+//                "vault" -> Json.toJson(Gearset("", items = vaultItems))
               )
             ))
 
@@ -201,7 +211,13 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       case _ => Future.successful(BadRequest("Invalid Membership Type"))
     }
   }
+
+  def extractItems(maybeItems: Option[Seq[JsValue]]): Seq[ItemSummary] = maybeItems.map {
+    data => data.map(_.as[ItemSummary])
+  }.getOrElse(Nil)
+
 }
+
 
 final case class Gearset(
     owner: String,
@@ -216,24 +232,8 @@ final case class Gearset(
     heavy: Seq[ItemSummary],
     ghost: Seq[ItemSummary])
 
-object Gearset {
-  def apply(owner: String, items: Seq[ItemSummary]) = {
-    val groups = items.groupBy(_.bucketHash)
-    new Gearset(
-      owner,
-      groups.getOrElse(Buckets.Helmet, Nil),
-      groups.getOrElse(Buckets.Chest, Nil),
-      groups.getOrElse(Buckets.Arms, Nil),
-      groups.getOrElse(Buckets.Boots, Nil),
-      groups.getOrElse(Buckets.ClassItem, Nil),
-      groups.getOrElse(Buckets.Artifact, Nil),
-      groups.getOrElse(Buckets.PrimaryWeapon, Nil),
-      groups.getOrElse(Buckets.SpecialWeapon, Nil),
-      groups.getOrElse(Buckets.HeavyWeapon, Nil),
-      groups.getOrElse(Buckets.Ghost, Nil)
-    )
-  }
 
+object Gearset {
   implicit val gearsetWrites: Writes[Gearset] = (
     (JsPath \ "owner").write[String] and
     (JsPath \ "helmet").write[Seq[ItemSummary]] and
@@ -247,4 +247,5 @@ object Gearset {
     (JsPath \ "heavyWeapon").write[Seq[ItemSummary]] and
     (JsPath \ "ghost").write[Seq[ItemSummary]]
   )(unlift(Gearset.unapply))
+
 }
