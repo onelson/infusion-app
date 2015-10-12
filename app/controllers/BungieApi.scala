@@ -222,7 +222,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
                     dbItems.map { implicit db =>
                       Gearset(
                         t.characterId,
-                        items.map(_.as[ItemSummary]).map(ItemDetail(_)).groupBy(_.bucketTypeHash))
+                        items.map(item => ItemDetail(item.as[ItemSummary])).groupBy(_.bucketTypeHash))
                     }
                   }
                 }

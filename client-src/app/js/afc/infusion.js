@@ -96,7 +96,10 @@ const GearTiles = React.createClass({
   render() {
     return (
         <ul>
-          { this.props.items.map(i => (<li key={i.itemHash}><img src={`${this.props.iconPrefix}${i.icon}`}/></li>)) }
+          { this.props.items.map(i => (
+              <li key={i.itemHash}>
+                <img title={i.itemName} src={`${this.props.iconPrefix}${i.icon}`}/>
+              </li>)) }
         </ul>
     );
 
