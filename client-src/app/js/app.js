@@ -37,7 +37,7 @@ const routes = (
     <IndexRoute name="findPlayer" component={infusion.pages.FindPlayer}/>
 
     <Route name="userDetail"
-           path="/guardian/:userId/:playerName"
+           path="/guardian/:platform/:playerName"
            component={infusion.pages.UserDetail}/>
 
     <Route path="*" component={NoMatch}/>

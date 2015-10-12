@@ -11,5 +11,6 @@ target
 /client-src/dist
 node_modules
 /public/*
+/app/assets/dist
 npm-debug.log
 /bungie-db

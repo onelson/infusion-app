@@ -18,7 +18,7 @@ var babel = require('babelify'),
     uglify = require('gulp-uglify'),
     watchify = require('watchify');
 
-var destDir = '../public';
+var destDir = '../app/assets/dist';
 
 function compile(watch) {
   var bundler = watchify(
