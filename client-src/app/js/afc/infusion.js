@@ -50,7 +50,7 @@ const SearchForm = React.createClass({
           } else {
             this.history.pushState(
                 {userId: resp.body.membershipId},
-                `/guardian/${resp.body.membershipId}/${resp.body.displayName}`);
+                `/guardian/${this.state.platform}/${resp.body.displayName}`);
           }
 
         });
@@ -84,6 +84,7 @@ const FindPlayer = React.createClass({
     return <SearchForm/>;
   }
 });
+
 
 const UserDetail = React.createClass({
   render() {

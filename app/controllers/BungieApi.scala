@@ -166,82 +166,81 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       .withHeaders("X-API-Key" -> API_KEY)
   }
 
+
+  def findPlayer(membershipType: String, playerName: String): Future[Option[Player]] = {
+    fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
+        resp: WSResponse => (resp.json \ "Response").as[Seq[Player]].headOption
+    }
+  }
+
   /**
    * @param platform Should be one of keys in `membershipTypes`
    * @param playerName Name of the player to find
    */
   def playerSearch(platform: String, playerName: String) = Action.async {
     membershipTypes.get(platform) match {
-      case Some(membershipType) => fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
-        response: WSResponse =>
-          (response.json \ "Response" ).as[Seq[Player]].headOption match {
-            case Some(player) => Ok(Json.toJson(player))
-            case _ => NotFound("Player not found.")
+        case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
+          (maybePlayer: Option[Player]) => maybePlayer match {
+            case Some(player) => Future.successful(Ok(Json.toJson(player)))
+            case _ => Future.successful(NotFound("Player not found."))
           }
-      }
-      case _ => Future.successful(BadRequest("Invalid Membership Type"))
-    }
-  }
-
-  def dbtest = Action.async {
-    getItems.map {
-      (items: Seq[DbItem]) =>
-        val groups = items.groupBy((item: DbItem) => (item.json \ "bucketTypeHash").get.toString())
-
-        val buckets: Map[String, JsArray] = groups.map {
-          case (k, v) => (k.toString, Json.arr(v.map((i: DbItem) => (i.json \ "itemTypeName").getOrElse(JsNull)).distinct))
         }
 
-        Ok(Json.toJson(buckets))
-    }
+        case _ => Future.successful(BadRequest("Invalid Membership Type"))
+      }
   }
 
-  def inventory(platform: String, membershipId: String) = Action.async {
+  def inventory(platform: String, playerName: String) = Action.async {
     membershipTypes.get(platform) match {
-      case Some(membershipType) =>
-        fetch(s"/$membershipType/Account/$membershipId/Summary/").get().flatMap {
-          response: WSResponse => {
+      case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
+        (maybePlayer: Option[Player]) => maybePlayer match {
+          case Some(player) =>         fetch(s"/$membershipType/Account/${player.membershipId}/Summary/").get().flatMap {
+            response: WSResponse => {
 
-            val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+              val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
 
-            val vaultGear = dbItems.map { implicit dbi =>
+              val vaultGear = dbItems.map { implicit dbi =>
                 val items = (response.json \ "Response" \ "data" \ "inventory" \ "items")
                   .as[Seq[JsValue]]
                   .map(js => js.asOpt[ItemSummary])
                   .filter(_.isDefined)
                   .map { summary => ItemDetail(summary.get) }.groupBy(_.bucketTypeHash)
-              Gearset("vault", items)
-            }
+                Gearset("vault", items)
+              }
 
-            val toonGear = toons.map { t =>
-              fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").get().flatMap {
-                resp: WSResponse => {
+              val toonGear = toons.map { t =>
+                fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").get().flatMap {
+                  resp: WSResponse => {
 
-                  val items = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable")
-                    .as[Seq[JsObject]]
-                    .filter(js => Buckets.InventorySlots.contains((js \ "bucketHash").as[Long]))
-                    .flatMap(js => (js \ "items").as[Seq[JsObject]])
+                    val items = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable")
+                      .as[Seq[JsObject]]
+                      .filter(js => Buckets.InventorySlots.contains((js \ "bucketHash").as[Long]))
+                      .flatMap(js => (js \ "items").as[Seq[JsObject]])
 
-                  if (t.characterId == "2305843009274867346") Logger.debug(items.size.toString)
+                    if (t.characterId == "2305843009274867346") Logger.debug(items.size.toString)
 
-                  dbItems.map { implicit db =>
-                     Gearset(
-                       t.characterId,
-                       items.map(_.as[ItemSummary]).map(ItemDetail(_)).groupBy(_.bucketTypeHash))
+                    dbItems.map { implicit db =>
+                      Gearset(
+                        t.characterId,
+                        items.map(_.as[ItemSummary]).map(ItemDetail(_)).groupBy(_.bucketTypeHash))
+                    }
                   }
                 }
               }
+
+              Future.sequence(vaultGear +: toonGear).map(gearsets => Ok(
+                Json.obj(
+                  "vault" -> Json.toJson(gearsets.head),
+                  "toons" -> Json.toJson(gearsets.tail)
+                )
+              ))
+
             }
-
-            Future.sequence(vaultGear +: toonGear).map(gearsets => Ok(
-              Json.obj(
-                "vault" -> Json.toJson(gearsets.head),
-                "toons" -> Json.toJson(gearsets.tail)
-              )
-            ))
-
           }
+
+          case _ => Future.successful(NotFound("Player not found."))
         }
+      }
       case _ => Future.successful(BadRequest("Invalid Membership Type"))
     }
   }
