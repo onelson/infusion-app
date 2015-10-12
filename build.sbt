@@ -69,7 +69,7 @@ stage <<= stage dependsOn buildClient
 herokuAppName in Compile := "immense-plateau-3425"
 
 herokuIncludePaths in Compile := Seq(
-  "app", "conf/routes", "public/", "bungie-db"
+  "app", "conf/routes", "bungie-db"
 )
 
 
