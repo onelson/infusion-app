@@ -1,6 +1,9 @@
 package controllers
 
+
 import javax.inject.Inject
+
+
 import scala.concurrent.Future
 
 import play.api.Configuration
@@ -13,6 +16,7 @@ import play.api.Logger
 
 import slick.driver.SQLiteDriver.api._
 import slick.jdbc.GetResult
+
 
 final case class Player(membershipId: String, displayName: String)
 final case class DbItem(raw: String) {
@@ -146,9 +150,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   }
 
   implicit val dbItems: Future[Map[Long, DbItem]] = getItems.map { (items: Seq[DbItem]) =>
-      items
-        .filter(i => Buckets.InventorySlots.contains(i.bucketTypeHash))
-        .map(i => (i.itemHash, i)).toMap[Long, DbItem]
+      items.map(i => (i.itemHash, i)).toMap[Long, DbItem]
     }
 
   implicit val playerReads: Format[Player] = (
@@ -161,7 +163,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     Logger.debug(s"fetching: $url")
     ws.url(url)
       .withQueryString("definitions" -> "false")
-      .withHeaders("X-API-Key" -> API_KEY).get()
+      .withHeaders("X-API-Key" -> API_KEY)
   }
 
   /**
@@ -170,7 +172,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
    */
   def playerSearch(platform: String, playerName: String) = Action.async {
     membershipTypes.get(platform) match {
-      case Some(membershipType) => fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").map {
+      case Some(membershipType) => fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
         response: WSResponse =>
           (response.json \ "Response" ).as[Seq[Player]].headOption match {
             case Some(player) => Ok(Json.toJson(player))
@@ -197,7 +199,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   def inventory(platform: String, membershipId: String) = Action.async {
     membershipTypes.get(platform) match {
       case Some(membershipType) =>
-        fetch(s"/$membershipType/Account/$membershipId/Summary/").flatMap {
+        fetch(s"/$membershipType/Account/$membershipId/Summary/").get().flatMap {
           response: WSResponse => {
 
             val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
@@ -207,27 +209,25 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
                   .as[Seq[JsValue]]
                   .map(js => js.asOpt[ItemSummary])
                   .filter(_.isDefined)
-                  .map { case Some(summary) => ItemDetail(summary) }.groupBy(_.bucketTypeHash)
+                  .map { summary => ItemDetail(summary.get) }.groupBy(_.bucketTypeHash)
               Gearset("vault", items)
             }
 
-
             val toonGear = toons.map { t =>
-              fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").flatMap {
+              fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").get().flatMap {
                 resp: WSResponse => {
-                  val equippable = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable").as[Seq[JsValue]]
 
-                   dbItems.map { implicit db =>
-                     val items = equippable.map(
-                      (js: JsValue) => {
-                        val bucket = (js \ "bucketHash").as[Long]
-                        val items = (js \ "items").as[Seq[JsValue]]
-                        (bucket, items)
-                      }).filter {
-                      pair => Buckets.InventorySlots.contains(pair._1)
-                    }.map(pair => (pair._1, pair._2.map(js => ItemDetail(js.as[ItemSummary])))
-                    ).toMap[Long, Seq[ItemDetail]]
-                    Gearset(t.characterId, items)
+                  val items = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable")
+                    .as[Seq[JsObject]]
+                    .filter(js => Buckets.InventorySlots.contains((js \ "bucketHash").as[Long]))
+                    .flatMap(js => (js \ "items").as[Seq[JsObject]])
+
+                  if (t.characterId == "2305843009274867346") Logger.debug(items.size.toString)
+
+                  dbItems.map { implicit db =>
+                     Gearset(
+                       t.characterId,
+                       items.map(_.as[ItemSummary]).map(ItemDetail(_)).groupBy(_.bucketTypeHash))
                   }
                 }
               }
