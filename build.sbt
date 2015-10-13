@@ -14,6 +14,7 @@ libraryDependencies ++= Seq(
   filters,
   ws,
   specs2 % Test,
+  "org.json4s" %% "json4s-native" % "3.3.0",
   "org.xerial" % "sqlite-jdbc" % "3.8.11.2",
   "com.typesafe.slick" %% "slick" % "3.0.3"
 )

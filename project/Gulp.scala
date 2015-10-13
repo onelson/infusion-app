@@ -14,7 +14,6 @@ object Gulp {
 
       override def beforeStarted(): Unit = {
         Process("npm install", base).run
-        Process("node_modules/.bin/gulp build", base).run
       }
 
       override def afterStarted(addr: InetSocketAddress): Unit = {
