@@ -190,21 +190,22 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       }
   }
 
-  def inventory(platform: String, playerName: String) = Action.async {
+  def inventory(platform: String, playerName: String) = Action.async { implicit request =>
+    Logger.debug(request.cookies.mkString)
     membershipTypes.get(platform) match {
       case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
         (maybePlayer: Option[Player]) => maybePlayer match {
-          case Some(player) =>         fetch(s"/$membershipType/Account/${player.membershipId}/Summary/").get().flatMap {
+          case Some(player) =>         fetch(s"/$membershipType/Account/${player.membershipId}/").get().flatMap {
             response: WSResponse => {
 
               val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
 
               val vaultGear = dbItems.map { implicit dbi =>
-                val items = (response.json \ "Response" \ "data" \ "inventory" \ "items")
-                  .as[Seq[JsValue]]
-                  .map(js => js.asOpt[ItemSummary])
-                  .filter(_.isDefined)
-                  .map { summary => ItemDetail(summary.get) }.groupBy(_.bucketTypeHash)
+                val items = (response.json \ "Response" \ "data" \ "inventory" \  "buckets" \ "Item")
+                  .as[Seq[JsObject]]
+                  .filter(js => Buckets.VaultSlots.contains((js \ "bucketHash").as[Long]))
+                  .flatMap(js => (js \ "items").as[Seq[ItemSummary]])
+                  .map { summary => ItemDetail(summary) }.groupBy(_.bucketTypeHash)
                 Gearset("vault", items)
               }
 
