@@ -58,6 +58,7 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
   def getLoggedInResult(resp: WSResponse): Future[Result] = {
 
     val bungieCookies: Seq[(String, String)] = Seq(
+      ("x-csrf", resp.cookie("bungled").flatMap(_.value).getOrElse("")),
       ("bungled", resp.cookie("bungled").flatMap(_.value).getOrElse("")),
       ("bungleatk", resp.cookie("bungleatk").flatMap(_.value).getOrElse("")),
       ("bungledid", resp.cookie("bungledid").flatMap(_.value).getOrElse(""))
@@ -66,7 +67,7 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
     ws.url("https://www.bungie.net/Platform/User/GetBungieNetUser/")
       .withHeaders(
         "X-API-Key" -> API_KEY,
-        "X-CSRF" -> bungieCookies.head._2,
+        "x-csrf" -> bungieCookies.head._2,
         "Cookie" -> bungieCookies.iterator.map(x => s"${x._1}=${x._2}").mkString(";")
       ).get().map {
       resp => Ok(resp.json).withSession(bungieCookies: _*)
@@ -119,11 +120,8 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
                       }
                     case _ => Future.successful(InternalServerError("Unknown error."))
                   }
-
                 }
-
               }
-
             }
           case _ => Future.successful(InternalServerError("Failed to get initial oauth token from PSN."))
         }
