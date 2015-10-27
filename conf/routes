@@ -1,3 +1,4 @@
+POST    /bng/auth/login   controllers.Auth.authenticate
 GET     /bng/player-search/:platform/:playerName    controllers.BungieApi.playerSearch(platform, playerName)
 GET     /bng/inventory/:platform/:playerName        controllers.BungieApi.inventory(platform, playerName)
 # Map static resources from the /public folder to the /assets URL path

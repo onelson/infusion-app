@@ -4,7 +4,7 @@ const React = require('react/addons');
 const classNames = require('classnames');
 const { History } = require('react-router');
 const request = require('superagent');
-
+const alt = require("./alt");
 
 
 /** little placeholder handler for pages that are still TODO */
@@ -208,9 +208,77 @@ const UserDetail = React.createClass({
 });
 
 
+const AltContainer = require('alt/AltContainer');
+const AuthStore = require("./stores/auth");
+const AuthActions = require("./actions/auth");
+
+const Derp = React.createClass({
+
+  getInitialState() {
+    return {
+      errorMessage: null,
+      identity: null
+    }
+  },
+
+  componentDidMount() {
+    AuthActions.fetchIdentity();
+  },
+
+  render() {
+    if (this.state.errorMessage) {
+      return (
+          <div>Something is wrong</div>
+      );
+    }
+
+    if (!this.state.player) {
+      const serialize = function(obj) {
+        const parts = [];
+        for(var p in obj)
+          if (obj.hasOwnProperty(p)) {
+            parts.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
+          }
+        return parts.join("&");
+      };
+
+      const params = serialize({
+        response_type: "code",
+        client_id: "78420c74-1fdf-4575-b43f-eb94c7d770bf",
+        redirect_uri: "https://www.bungie.net/en/User/SignIn/Psnid",
+        scope: "psn:s2s",
+        locale: "en"
+      });
+
+      const url = `https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize?${params}}`;
+
+      return (
+          <div>
+            <p>Please login at <a href="https://bungie.net" target="_bungie">Bungie.net</a></p>
+          </div>
+      )
+    }
+
+    return (
+        <pre>{JSON.stringify(this.state.player, 2)}</pre>
+    );
+  }
+});
+
+const Derpity = React.createClass({
+  render() {
+    return (
+        <AltContainer store={AuthStore}>
+          <Derp />
+        </AltContainer>
+    );
+  }
+});
+
+
 module.exports = {
   pages: {
-    FindPlayer,
+    FindPlayer: Derpity,
     UserDetail
   }
 };

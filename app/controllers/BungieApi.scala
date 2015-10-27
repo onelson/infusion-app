@@ -18,7 +18,6 @@ import slick.driver.SQLiteDriver.api._
 import slick.jdbc.GetResult
 
 
-final case class Player(membershipId: String, displayName: String)
 final case class DbItem(raw: String) {
   val json = Json.parse(raw)
   val itemHash: Long = (json \ "itemHash").as[Long]
@@ -152,11 +151,6 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   implicit val dbItems: Future[Map[Long, DbItem]] = getItems.map { (items: Seq[DbItem]) =>
       items.map(i => (i.itemHash, i)).toMap[Long, DbItem]
     }
-
-  implicit val playerReads: Format[Player] = (
-    (JsPath \ "membershipId").format[String] and
-    (JsPath \ "displayName").format[String]
-  )(Player.apply, unlift(Player.unapply))
 
   def fetch(path: String) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
