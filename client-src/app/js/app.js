@@ -1,10 +1,10 @@
 'use strict';
 
-const React = require('react');
-const ReactDOM = require('react-dom');
-const { IndexRoute, Router, Route, Link, NoMatch } = require('react-router');
-const createBrowserHistory = require('history/lib/createBrowserHistory');
-const infusion = require('afc/infusion');
+import React from 'react';
+import ReactDOM from 'react-dom';
+import { IndexRoute, Router, Route, Link, NoMatch } from 'react-router';
+import createBrowserHistory from 'history/lib/createBrowserHistory';
+import infusion from 'afc/infusion';
 
 
 class App extends React.Component {

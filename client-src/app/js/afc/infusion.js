@@ -1,10 +1,10 @@
 'use strict';
 
-const React = require('react');
-const LinkedStateMixin = require('react-addons-linked-state-mixin');
-const classNames = require('classnames');
-const { History } = require('react-router');
-const request = require('superagent');
+import React from 'react';
+import LinkedStateMixin from 'react-addons-linked-state-mixin';
+import classNames from 'classnames';
+import { History } from 'react-router';
+import request from 'superagent';
 
 
 /** little placeholder handler for pages that are still TODO */
@@ -202,10 +202,7 @@ const Login = React.createClass({
 });
 
 
-
-
-
-module.exports = {
+export default {
   pages: {
     Login: Login,
     UserDetail: UserDetail

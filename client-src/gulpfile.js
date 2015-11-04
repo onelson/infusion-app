@@ -2,7 +2,7 @@
 
 require('es6-promise').polyfill();  // needed for node versions < 0.12
  
-var babel = require('babelify'),
+var babelify = require('babelify'),
     browserify = require('browserify'),
     autoprefixer = require('autoprefixer'),
     buffer = require('vinyl-buffer'),
@@ -26,10 +26,7 @@ function compile(watch) {
       debug: true,
       paths: ['./app/js/'],
       extensions: ['.js', '.jsx']
-    }).transform(babel.configure({
-      optional: ["es7.decorators"],
-      blacklist: ["regenerator"]
-    })).require('./app/js/app.js', {entry: true})
+    }).transform(babelify).require('./app/js/app.js', {entry: true})
   );
  
   function rebundle() {
