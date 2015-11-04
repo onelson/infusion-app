@@ -1,10 +1,10 @@
 'use strict';
 
-const React = require('react/addons');
+const React = require('react');
+const LinkedStateMixin = require('react-addons-linked-state-mixin');
 const classNames = require('classnames');
 const { History } = require('react-router');
 const request = require('superagent');
-const alt = require("./alt");
 
 
 /** little placeholder handler for pages that are still TODO */
@@ -23,13 +23,14 @@ const Platforms = {
 };
 
 
-const SearchForm = React.createClass({
-  mixins: [React.addons.LinkedStateMixin, History],
+const LoginForm = React.createClass({
+  mixins: [LinkedStateMixin, History],
   getInitialState() {
     return {
-      playerName: "",
+      username: "",
+      password: "",
       platform: Platforms.PSN,
-      notFound: false
+      error: false
     }
   },
   changePlatform(platform) {
@@ -40,17 +41,15 @@ const SearchForm = React.createClass({
   },
   onSubmit(event) {
     event.preventDefault();
+    const { username, password, platform } = this.state;
     request
-        .get(`/bng/player-search/${this.state.platform}/${this.state.playerName}`)
+        .post(`/bng/auth/login`)
+        .send({username, password, platform})
         .end((err, resp) => {
-          if(err && err.status === 404) {
-            this.setState({notFound: true});
-          } else if (err) {
-            // TODO
+          if(err) {
+            this.setState({error: true});
           } else {
-            this.history.pushState(
-                {userId: resp.body.membershipId},
-                `/guardian/${this.state.platform}/${resp.body.displayName}`);
+            this.history.pushState(null, "/");
           }
 
         });
@@ -69,19 +68,13 @@ const SearchForm = React.createClass({
                    className={classNames({"is-active": this.state.platform === Platforms.Xbox})}
                    onClick={this.changePlatform(Platforms.Xbox)}>XBox</a></li>
             </ul>
-            <input type="text" valueLink={this.linkState("playerName")} placeholder="Gamertag"/>
+            <input type="text" valueLink={this.linkState("username")} placeholder="username"/>
+            <input type="password" valueLink={this.linkState("password")} placeholder="password"/>
             <input type="submit" value="Search" className="button" />
           </form>
-          {this.state.notFound ? <p>Aww, snap! We couldn't find your guardian.</p> : ''}
+          {this.state.error ? <p>Aww, snap! Login failed!</p> : ''}
         </div>
     );
-  }
-});
-
-
-const FindPlayer = React.createClass({
-  render() {
-    return <SearchForm/>;
   }
 });
 
@@ -167,15 +160,8 @@ const UserDetail = React.createClass({
     this.fetchInventory();
   },
 
-  componentDidUpdate (prevProps) {
-    const oldName = prevProps.params.playerName;
-    const newName = this.props.params.playerName;
-    const oldPlatform = prevProps.params.platform;
-    const newPlatform = this.props.params.platform;
-    if (newName !== oldName || newPlatform!== oldPlatform) {
+  componentDidUpdate () {
       this.fetchInventory();
-    }
-
   },
 
   componentWillUnmount () {
@@ -183,102 +169,45 @@ const UserDetail = React.createClass({
   },
 
   fetchInventory () {
-    this.request = request.get(
-        `/bng/inventory/${this.props.params.platform}/${this.props.params.playerName}`,
-        (err, resp) => {
-          if (!this.ignoreLastFetch) {
-            const gearsets = resp.body.toons.concat(resp.body.vault)
-            this.setState({ gearsets: gearsets });
-          }
-        })
-  },
+    request.get("/bng/gear", (err, resp) => {
+      console.debug(resp);
+      if (!this.ignoreLastFetch) {
+        //const gearsets = resp.body.toons.concat(resp.body.vault);
+        //this.setState({ gearsets: gearsets });
+      }
+    });
 
+  },
 
   render() {
     return (
-        <ul>
-          {this.state.gearsets.map(gs => (
-              <li key={gs.owner}>
-                <Gearset {...gs} />
-              </li>
-          ))}
-        </ul>
+        <div>
+          <h1>Gear</h1>
+          <ul>
+            {this.state.gearsets.map(x => (<li><Gearset props={x} key={x.owner}/></li>))}
+          </ul>
+          <pre>{JSON.stringify(this.state, 2)}</pre>
+        </div>
     );
   }
 });
 
 
-const AltContainer = require('alt/AltContainer');
-const AuthStore = require("./stores/auth");
-const AuthActions = require("./actions/auth");
-
-const Derp = React.createClass({
-
-  getInitialState() {
-    return {
-      errorMessage: null,
-      identity: null
-    }
-  },
-
-  componentDidMount() {
-    AuthActions.fetchIdentity();
-  },
-
+const Login = React.createClass({
   render() {
-    if (this.state.errorMessage) {
-      return (
-          <div>Something is wrong</div>
-      );
-    }
-
-    if (!this.state.player) {
-      const serialize = function(obj) {
-        const parts = [];
-        for(var p in obj)
-          if (obj.hasOwnProperty(p)) {
-            parts.push(encodeURIComponent(p) + "=" + encodeURIComponent(obj[p]));
-          }
-        return parts.join("&");
-      };
-
-      const params = serialize({
-        response_type: "code",
-        client_id: "78420c74-1fdf-4575-b43f-eb94c7d770bf",
-        redirect_uri: "https://www.bungie.net/en/User/SignIn/Psnid",
-        scope: "psn:s2s",
-        locale: "en"
-      });
-
-      const url = `https://auth.api.sonyentertainmentnetwork.com/2.0/oauth/authorize?${params}}`;
-
-      return (
-          <div>
-            <p>Please login at <a href="https://bungie.net" target="_bungie">Bungie.net</a></p>
-          </div>
-      )
-    }
-
     return (
-        <pre>{JSON.stringify(this.state.player, 2)}</pre>
+          <LoginForm/>
     );
   }
 });
 
-const Derpity = React.createClass({
-  render() {
-    return (
-        <AltContainer store={AuthStore}>
-          <Derp />
-        </AltContainer>
-    );
-  }
-});
+
+
 
 
 module.exports = {
   pages: {
-    FindPlayer: Derpity,
-    UserDetail
+    Login: Login,
+    UserDetail: UserDetail
   }
 };

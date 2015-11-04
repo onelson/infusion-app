@@ -1,23 +1,13 @@
 'use strict';
 
 const React = require('react');
-const connectToStores = require('alt/utils/connectToStores');
+const ReactDOM = require('react-dom');
 const { IndexRoute, Router, Route, Link, NoMatch } = require('react-router');
 const createBrowserHistory = require('history/lib/createBrowserHistory');
 const infusion = require('afc/infusion');
 
 
-@connectToStores
 class App extends React.Component {
-
-  static getStores() {
-    return [];
-  }
-
-  static getPropsFromStores() {
-    return {};
-  }
-
   render() {
 
     return (
@@ -34,16 +24,15 @@ class App extends React.Component {
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute name="findPlayer" component={infusion.pages.FindPlayer}/>
-
-    <Route name="userDetail"
-           path="/guardian/:platform/:playerName"
-           component={infusion.pages.UserDetail}/>
+    <IndexRoute name="gear" component={infusion.pages.UserDetail}/>
+    <Route name="login"
+           path="/login"
+           component={infusion.pages.Login}/>
 
     <Route path="*" component={NoMatch}/>
   </Route>);
 
 global.initApp = function (element) {
   const history = createBrowserHistory();
-  React.render(<Router history={history}>{routes}</Router>, element);
+  ReactDOM.render(<Router history={history}>{routes}</Router>, element);
 };

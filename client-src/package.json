@@ -3,13 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "dependencies": {
-    "alt": "^0.17.6",
     "classnames": "^2.1.5",
     "history": "~1.11.1",
     "immutable": "^3.7.5",
-    "react": "^0.14.0",
+    "react": "^0.14.2",
+    "react-addons-linked-state-mixin": "^0.14.2",
+    "react-dom": "^0.14.2",
     "react-foundation-apps": "^0.6.1",
+    "react-redux": "^4.0.0",
     "react-router": "^1.0.0-rc1",
+    "redux": "^3.0.4",
     "superagent": "^1.4.0"
   },
   "devDependencies": {

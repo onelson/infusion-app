@@ -7,7 +7,7 @@ import javax.inject.Inject
 import scala.concurrent.Future
 
 import play.api.Configuration
-import play.api.mvc.{Action, Controller}
+import play.api.mvc.{Request, Session, Action, Controller}
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
@@ -26,6 +26,7 @@ final case class DbItem(raw: String) {
 
 final case class ItemSummary(
     itemHash: Long,
+    characterIndex: Int,
     isGridComplete: Boolean,
     value: Int,  // get from primaryStat.value,
     damageType: Int
@@ -34,6 +35,7 @@ final case class ItemSummary(
 object ItemSummary {
   implicit val itemSummaryWrites: Writes[ItemSummary] = (
     (JsPath \ "itemHash").write[Long] and
+    (JsPath \ "characterIndex").write[Int] and
     (JsPath \ "isGridComplete").write[Boolean] and
     (JsPath \ "value").write[Int] and
     (JsPath \ "damageType").write[Int]
@@ -41,6 +43,7 @@ object ItemSummary {
 
   implicit val itemSummaryReads: Reads[ItemSummary] = (
     (JsPath \ "itemHash").read[Long] and
+    (JsPath \ "characterIndex").read[Int] and
     (JsPath \ "isGridComplete").read[Boolean] and
     (JsPath \ "primaryStat" \"value").read[Int] and
     (JsPath \ "damageType").read[Int]
@@ -124,6 +127,8 @@ object Buckets {
 
   val VaultSlots = Seq(VaultArmor, VaultWeapon)
 
+  val GearSlots = VaultSlots ++ InventorySlots
+
 }
 
 
@@ -137,6 +142,15 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     config.getString("afc.bungieDbFile").fold("")((v: String) => v)
 
   val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
+
+
+  def requestHeadersFromSession(session: Session) = Seq(
+    ("X-API-Key", API_KEY),
+    ("x-csrf", session("bungled")),
+    ("bungled", session("bungled")),
+    ("bungleatk", session("bungleatk")),
+    ("bungledid", session("bungledid"))
+  )
 
   implicit val getItemResult:GetResult[DbItem] =
     GetResult(r => DbItem(r.nextString))
@@ -152,87 +166,53 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       items.map(i => (i.itemHash, i)).toMap[Long, DbItem]
     }
 
-  def fetch(path: String) = {
+  def fetch(path: String)(implicit request: Request[_]) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
     Logger.debug(s"fetching: $url")
     ws.url(url)
       .withQueryString("definitions" -> "false")
-      .withHeaders("X-API-Key" -> API_KEY)
+      .withHeaders(requestHeadersFromSession(request.session): _*)
   }
 
 
   def findPlayer(membershipType: String, playerName: String): Future[Option[Player]] = {
-    fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
-        resp: WSResponse => (resp.json \ "Response").as[Seq[Player]].headOption
-    }
+//    fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
+//        resp: WSResponse => (resp.json \ "Response").as[Seq[Player]].headOption
+//    }
+    Future.successful(None)
   }
 
-  /**
-   * @param platform Should be one of keys in `membershipTypes`
-   * @param playerName Name of the player to find
-   */
-  def playerSearch(platform: String, playerName: String) = Action.async {
-    membershipTypes.get(platform) match {
-        case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
-          (maybePlayer: Option[Player]) => maybePlayer match {
-            case Some(player) => Future.successful(Ok(Json.toJson(player)))
-            case _ => Future.successful(NotFound("Player not found."))
-          }
-        }
-
-        case _ => Future.successful(BadRequest("Invalid Membership Type"))
-      }
+  def gear = Action.async { implicit request =>
+    Logger.debug(request.session.data.mkString)
+    Future.successful(NoContent)
   }
 
   def inventory(platform: String, playerName: String) = Action.async { implicit request =>
-    Logger.debug(request.cookies.mkString)
+
     membershipTypes.get(platform) match {
       case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
         (maybePlayer: Option[Player]) => maybePlayer match {
-          case Some(player) =>         fetch(s"/$membershipType/Account/${player.membershipId}/").get().flatMap {
+          case Some(player) => fetch(s"/$membershipType/Account/${player.membershipId}/Items/").get().flatMap {
             response: WSResponse => {
 
               val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
 
-              val vaultGear = dbItems.map { implicit dbi =>
-                val items = (response.json \ "Response" \ "data" \ "inventory" \  "buckets" \ "Item")
+              dbItems.map { implicit dbi =>
+                val items = (response.json \ "Response" \ "data" \ "items")
                   .as[Seq[JsObject]]
-                  .filter(js => Buckets.VaultSlots.contains((js \ "bucketHash").as[Long]))
+                  .filter(js => Buckets.GearSlots.contains((js \ "bucketHash").as[Long]))
                   .flatMap(js => (js \ "items").as[Seq[ItemSummary]])
                   .map { summary => ItemDetail(summary) }.groupBy(_.bucketTypeHash)
-                Gearset("vault", items)
+
+                // FIXME: partition by character index
+
+                Gearset("foo", items)
+              }.map { gearsets =>
+                Ok(Json.arr(gearsets))
               }
-
-              val toonGear = toons.map { t =>
-                fetch(s"/2/Account/${t.membershipId}/Character/${t.characterId}/Inventory/").get().flatMap {
-                  resp: WSResponse => {
-
-                    val items = (resp.json \ "Response" \ "data" \ "buckets" \ "Equippable")
-                      .as[Seq[JsObject]]
-                      .filter(js => Buckets.InventorySlots.contains((js \ "bucketHash").as[Long]))
-                      .flatMap(js => (js \ "items").as[Seq[JsObject]])
-
-                    if (t.characterId == "2305843009274867346") Logger.debug(items.size.toString)
-
-                    dbItems.map { implicit db =>
-                      Gearset(
-                        t.characterId,
-                        items.map(item => ItemDetail(item.as[ItemSummary])).groupBy(_.bucketTypeHash))
-                    }
-                  }
-                }
-              }
-
-              Future.sequence(vaultGear +: toonGear).map(gearsets => Ok(
-                Json.obj(
-                  "vault" -> Json.toJson(gearsets.head),
-                  "toons" -> Json.toJson(gearsets.tail)
-                )
-              ))
 
             }
           }
-
           case _ => Future.successful(NotFound("Player not found."))
         }
       }

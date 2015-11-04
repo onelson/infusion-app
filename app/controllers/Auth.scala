@@ -1,19 +1,14 @@
 package controllers
 
 import javax.inject.Inject
-
-
-import com.ning.http.client.providers.netty.response.NettyResponse
-
-import scala.concurrent.{Await, Future}
-import scala.concurrent.duration._
+import scala.concurrent.Future
 
 import play.api.Configuration
 import play.api.mvc._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.json._
 import play.api.libs.functional.syntax._
-import play.api.libs.ws.{WSCookie, WSResponse, WSClient}
+import play.api.libs.ws.{WSResponse, WSClient}
 import play.api.Logger
 
 
@@ -58,7 +53,6 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
   def getLoggedInResult(resp: WSResponse): Future[Result] = {
 
     val bungieCookies: Seq[(String, String)] = Seq(
-      ("x-csrf", resp.cookie("bungled").flatMap(_.value).getOrElse("")),
       ("bungled", resp.cookie("bungled").flatMap(_.value).getOrElse("")),
       ("bungleatk", resp.cookie("bungleatk").flatMap(_.value).getOrElse("")),
       ("bungledid", resp.cookie("bungledid").flatMap(_.value).getOrElse(""))
@@ -127,6 +121,10 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
         }
      }
 
+  }
+
+  def logout = Action {
+    NoContent.withNewSession
   }
 
 }
