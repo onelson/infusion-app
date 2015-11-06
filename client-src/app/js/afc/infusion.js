@@ -1,5 +1,3 @@
-'use strict';
-
 import React from 'react';
 import LinkedStateMixin from 'react-addons-linked-state-mixin';
 import classNames from 'classnames';

@@ -4,7 +4,7 @@ import play.sbt.PlayRunHook
 import sbt._
 
 
-object Gulp {
+object ClientBuild {
 
   def apply(base: File): PlayRunHook = {
 
@@ -17,7 +17,7 @@ object Gulp {
       }
 
       override def afterStarted(addr: InetSocketAddress): Unit = {
-        process = Some(Process("node_modules/.bin/gulp watch", base).run)
+        process = Some(Process("node_modules/.bin/webpack --watch", base).run)
       }
 
       override def afterStopped(): Unit = {

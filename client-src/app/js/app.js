@@ -1,15 +1,11 @@
-'use strict';
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { IndexRoute, Router, Route, Link, NoMatch } from 'react-router';
 import createBrowserHistory from 'history/lib/createBrowserHistory';
 import infusion from 'afc/infusion';
 
-
 class App extends React.Component {
-  render() {
-
+  render () {
     return (
       <div>
         <div className="title-bar">
@@ -21,6 +17,9 @@ class App extends React.Component {
   }
 }
 
+App.propTypes = {
+  children: React.PropTypes.object.isRequired
+};
 
 const routes = (
   <Route path="/" component={App}>

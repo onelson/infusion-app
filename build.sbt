@@ -75,7 +75,7 @@ herokuIncludePaths in Compile := Seq(
 
 
 // runs `gulp watch` in the client-src dir when running the app via `sbt run`
-import Gulp._
+import ClientBuild._
 import play.PlayImport.PlayKeys.playRunHooks
 
-playRunHooks <+= (baseDirectory / "client-src").map(base => Gulp(base))
+playRunHooks <+= (baseDirectory / "client-src").map(base => ClientBuild(base))
