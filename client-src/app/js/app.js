@@ -1,19 +1,40 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
 import { IndexRoute, Router, Route, Link, NoMatch } from 'react-router';
 import createBrowserHistory from 'history/lib/createBrowserHistory';
+import { createStore, combineReducers, applyMiddleware } from 'redux';
+import thunk from 'redux-thunk';
+
+import { user, gearsets, initialState} from './afc/reducers';
 import infusion from 'afc/infusion';
+
+const createStoreWithMiddleware = applyMiddleware(
+    thunk
+)(createStore);
+
+const rootReducer = combineReducers({ user, gearsets });
+const store = createStoreWithMiddleware(rootReducer, initialState);
+
+// Log the initial state
+console.log(store.getState());
+
+// Every time the state changes, log it
+const unsubscribe = store.subscribe(() =>
+    console.log(store.getState())
+);
 
 class App extends React.Component {
   render () {
     return (
-      <div>
-        <div className="title-bar">
-          <span className="left title"><Link to="/">Infusion Solver</Link></span>
+      <Provider store={store}>
+        <div>
+          <div className="title-bar">
+            <span className="left title"><Link to="/">Infusion Solver</Link></span>
+          </div>
+          {this.props.children}
         </div>
-        {this.props.children}
-      </div>
-    );
+      </Provider>);
   }
 }
 
