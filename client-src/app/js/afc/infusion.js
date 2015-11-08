@@ -75,7 +75,7 @@ const LoginForm = React.createClass({
             </ul>
             <input type="text" valueLink={this.linkState("username")} placeholder="username"/>
             <input type="password" valueLink={this.linkState("password")} placeholder="password"/>
-            <input type="submit" value="Search" className="button" />
+            <input type="submit" value="Login" className="button" />
           </form>
           {this.state.error ? <p>Aww, snap! Login failed!</p> : ''}
         </div>
