@@ -1,9 +1,10 @@
 import React from 'react';
-import { History } from 'react-router';
+import { Link, History } from 'react-router';
 import { connect } from 'react-redux';
 import request from 'superagent';
 
 import { ActionCreators } from '../actions';
+import LoginForm from '../components/login-form';
 
 function mapStateToProps(state) {
   return {
@@ -41,6 +42,11 @@ const Login = React.createClass({
   render () {
     return (
         <div>
+          <div className="title-bar">
+            <span className="left title">
+              <Link to="/">Infusion Solver</Link>
+            </span>
+          </div>
           <LoginForm doLogin={this.authenticate}/>
           {this.props.loginFailure ? (<p>Aww snap! {this.props.loginFailure}</p>) : ''}
         </div>

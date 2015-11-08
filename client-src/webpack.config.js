@@ -36,7 +36,6 @@ module.exports = {
       { test: /\.es6$/, loader: 'eslint-loader' }
     ],
     loaders: [
-      //{ test: /\.es6$/, loader: 'babel' },
       {
         test: /\.js$/,
         loader: 'babel',
@@ -46,7 +45,6 @@ module.exports = {
           cacheDirectory: true
         }
       },
-
       { test: /\.html$/, loader: 'raw' },
       { test: /\.scss/,
         loader: ExtractTextPlugin.extract(

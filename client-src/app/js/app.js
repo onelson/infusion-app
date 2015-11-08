@@ -28,12 +28,7 @@ const App = React.createClass({
   render () {
     return (
       <Provider store={store}>
-        <div>
-          <div className="title-bar">
-            <span className="left title"><Link to="/">Infusion Solver</Link></span>
-          </div>
           {this.props.children}
-        </div>
       </Provider>);
   }
 });
