@@ -1,15 +1,27 @@
 import { ActionTypes } from './actions';
 
 export const initialState = {
-  user: null,
+  loginFailure: null,
+  user: localStorage.user ? JSON.parse(localStorage.user) : null,
   gearsets: []
 };
 
+export function loginFailure (state = initialState.loginFailure, action) {
+  switch (action.type) {
+    case ActionTypes.LOGIN_FAILED:
+      return action.reason;
+    default:
+      return state;
+  }
+}
+
 export function user (state = initialState.user, action) {
   switch (action.type) {
-    case ActionTypes.AUTHENTICATE:
-      return null; // FIXME
+    case ActionTypes.LOGGED_IN:
+        localStorage.user = JSON.stringify(action.user);
+      return action.user;
     case ActionTypes.LOGOUT:
+        localStorage.clear();
       return null;
     default:
       return state;
@@ -18,8 +30,8 @@ export function user (state = initialState.user, action) {
 
 export function gearsets (state = initialState.gearsets, action) {
   switch (action.type) {
-    case ActionTypes.FETCH_GEAR:
-      return []; // FIXME
+    case ActionTypes.GEAR_FETCHED:
+      return action.gearsets;
     default:
       return state;
   }

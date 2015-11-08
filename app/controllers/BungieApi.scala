@@ -26,6 +26,7 @@ final case class DbItem(raw: String) {
 
 final case class ItemSummary(
     itemHash: Long,
+    itemId: String,
     characterIndex: Int,
     isGridComplete: Boolean,
     value: Int,  // get from primaryStat.value,
@@ -35,6 +36,7 @@ final case class ItemSummary(
 object ItemSummary {
   implicit val itemSummaryWrites: Writes[ItemSummary] = (
     (JsPath \ "itemHash").write[Long] and
+    (JsPath \ "itemId").write[String] and
     (JsPath \ "characterIndex").write[Int] and
     (JsPath \ "isGridComplete").write[Boolean] and
     (JsPath \ "value").write[Int] and
@@ -43,6 +45,7 @@ object ItemSummary {
 
   implicit val itemSummaryReads: Reads[ItemSummary] = (
     (JsPath \ "itemHash").read[Long] and
+    (JsPath \ "itemId").read[String] and
     (JsPath \ "characterIndex").read[Int] and
     (JsPath \ "isGridComplete").read[Boolean] and
     (JsPath \ "primaryStat" \"value").read[Int] and
@@ -61,16 +64,15 @@ final case class ItemDetail(
 )
 
 object ItemDetail {
-  def apply(summary: ItemSummary)(implicit dbItems: Map[Long, DbItem]) = {
-    val dbData = dbItems(summary.itemHash)
+  def apply(summary: ItemSummary, dbItem: DbItem) = {
     new ItemDetail(
       summary=summary,
-      bucketTypeHash=dbData.bucketTypeHash,
-      tierType=(dbData.json \ "tierType").as[Int],
-      tierTypeName=(dbData.json \ "tierTypeName").as[String],
-      itemName=(dbData.json \ "itemName").as[String],
-      icon=(dbData.json \ "icon").as[String],
-      qualityLevel=(dbData.json \ "qualityLevel").as[Int])
+      bucketTypeHash=dbItem.bucketTypeHash,
+      tierType=(dbItem.json \ "tierType").as[Int],
+      tierTypeName=(dbItem.json \ "tierTypeName").as[String],
+      itemName=(dbItem.json \ "itemName").as[String],
+      icon=(dbItem.json \ "icon").as[String],
+      qualityLevel=(dbItem.json \ "qualityLevel").as[Int])
   }
 
   implicit val writes: Writes[ItemDetail] = (
@@ -144,13 +146,19 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
 
 
-  def requestHeadersFromSession(session: Session) = Seq(
-    ("X-API-Key", API_KEY),
-    ("x-csrf", session("bungled")),
-    ("bungled", session("bungled")),
-    ("bungleatk", session("bungleatk")),
-    ("bungledid", session("bungledid"))
-  )
+  def requestHeadersFromSession(session: Session) = {
+    val bungieCookies: Seq[(String, String)] = Seq(
+      ("bungled", session("bungled")),
+      ("bungleatk", session("bungleatk")),
+      ("bungledid", session("bungledid"))
+    )
+
+    Seq(
+      ("x-api-key", API_KEY),
+      ("x-csrf", session("bungled")),
+      ("Cookie", bungieCookies.iterator.map(x => s"${x._1}=${x._2}").mkString(";"))
+    )
+  }
 
   implicit val getItemResult:GetResult[DbItem] =
     GetResult(r => DbItem(r.nextString))
@@ -175,48 +183,48 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
   }
 
 
-  def findPlayer(membershipType: String, playerName: String): Future[Option[Player]] = {
-//    fetch(s"/SearchDestinyPlayer/$membershipType/$playerName/").get().map {
-//        resp: WSResponse => (resp.json \ "Response").as[Seq[Player]].headOption
-//    }
-    Future.successful(None)
-  }
+  def gear(platform: String, membershipId: String) = Action.async { implicit request =>
 
-  def gear = Action.async { implicit request =>
-    Logger.debug(request.session.data.mkString)
-    Future.successful(NoContent)
-  }
+    val membershipType = membershipTypes(platform)
 
-  def inventory(platform: String, playerName: String) = Action.async { implicit request =>
+    fetch(s"/$membershipType/Account/$membershipId/Items/").get().flatMap {
+      response: WSResponse => {
+        val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+        dbItems.map { implicit dbi =>
 
-    membershipTypes.get(platform) match {
-      case Some(membershipType) => findPlayer(membershipType, playerName).flatMap {
-        (maybePlayer: Option[Player]) => maybePlayer match {
-          case Some(player) => fetch(s"/$membershipType/Account/${player.membershipId}/Items/").get().flatMap {
-            response: WSResponse => {
+          val itemsByToon: Map[Int, Seq[ItemSummary]] =
+            (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
+//              .filter(js => Buckets.GearSlots.contains((js \ "bucketHash").as[Long]))
+              .map(_.asOpt[ItemSummary])
+              .filter(_.isDefined)
+              .map { case Some(summary) => summary }
+              .groupBy(_.characterIndex)
 
-              val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+          itemsByToon.map {
+            case (idx, summaries) =>
 
-              dbItems.map { implicit dbi =>
-                val items = (response.json \ "Response" \ "data" \ "items")
-                  .as[Seq[JsObject]]
-                  .filter(js => Buckets.GearSlots.contains((js \ "bucketHash").as[Long]))
-                  .flatMap(js => (js \ "items").as[Seq[ItemSummary]])
-                  .map { summary => ItemDetail(summary) }.groupBy(_.bucketTypeHash)
+              // FIXME: dropping any summaries that we don't have details for.
+              // Should do an extra lookup or something instead
+              val details: Seq[ItemDetail] = summaries
+                .map(
+                  summary => dbi.get(summary.itemHash) match {
+                    case Some(dbItem) => Some(ItemDetail(summary, dbItem))
+                    case _ =>
+                      Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
+                      None
+                  }
+                )
+                .filter(_.isDefined)
+                .map { case Some(detail) => detail }
 
-                // FIXME: partition by character index
-
-                Gearset("foo", items)
-              }.map { gearsets =>
-                Ok(Json.arr(gearsets))
+                Gearset(idx.toString, details.groupBy(_.bucketTypeHash))
               }
-
-            }
-          }
-          case _ => Future.successful(NotFound("Player not found."))
+        }.map { gearsets => Ok(Json.obj(
+            "toons" -> toons,
+            "gearsets" -> gearsets
+          ))
         }
       }
-      case _ => Future.successful(BadRequest("Invalid Membership Type"))
     }
   }
 }

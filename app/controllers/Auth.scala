@@ -11,17 +11,6 @@ import play.api.libs.functional.syntax._
 import play.api.libs.ws.{WSResponse, WSClient}
 import play.api.Logger
 
-
-final case class Player(membershipId: String, displayName: String)
-
-object Player {
-  implicit val format: Format[Player] = (
-    (JsPath \ "membershipId").format[String] and
-    (JsPath \ "displayName").format[String]
-  )(Player.apply, unlift(Player.unapply))
-
-}
-
 final case class Creds(username: String, password: String, platform: String)
 
 object Creds {
@@ -60,11 +49,21 @@ class Auth @Inject() (ws: WSClient, config: Configuration) extends Controller {
 
     ws.url("https://www.bungie.net/Platform/User/GetBungieNetUser/")
       .withHeaders(
-        "X-API-Key" -> API_KEY,
+        "x-api-key" -> API_KEY,
         "x-csrf" -> bungieCookies.head._2,
         "Cookie" -> bungieCookies.iterator.map(x => s"${x._1}=${x._2}").mkString(";")
-      ).get().map {
-      resp => Ok(resp.json).withSession(bungieCookies: _*)
+      ).get().flatMap { getUserResp =>
+          val displayName = (getUserResp.json \ "Response" \ "user" \ "displayName").get.as[String]
+          ws.url(s"https://www.bungie.net/Platform/Destiny/2/Stats/GetMembershipIdByDisplayName/$displayName/")
+            .withHeaders(
+              "X-API-Key" -> API_KEY,
+              "x-csrf" -> bungieCookies.head._2,
+              "Cookie" -> bungieCookies.iterator.map(x => s"${x._1}=${x._2}").mkString(";")
+            ).get()
+            .map { resp => Ok(Json.obj(
+              "membershipId" -> (resp.json \ "Response").get.as[String],
+              "displayName" -> displayName
+            )).withSession(bungieCookies: _*) }
     }
   }
 

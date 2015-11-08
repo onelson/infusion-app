@@ -1,16 +1,29 @@
+import classNames from 'classnames';
+import request from 'superagent';
 import React from 'react';
 import LinkedStateMixin from 'react-addons-linked-state-mixin';
-import classNames from 'classnames';
 import { History } from 'react-router';
-import request from 'superagent';
+import { connect } from 'react-redux'
+import { ActionCreators } from './actions';
 
+function mapStateToProps(state) {
+  return {
+    loginFailure: state.loginFailure,
+    user: state.user,
+    gearsets: state.gearsets
+  };
+}
 
-/** little placeholder handler for pages that are still TODO */
-class Todo extends React.Component {
-  render() {
-    return (<div>TODO</div>);
+function mapDispatchToProps(dispatch) {
+  return {
+    loggedIn: (user) => dispatch(ActionCreators.loggedIn(user)),
+    loginFailed: (reason) => dispatch(ActionCreators.loginFailed(reason)),
+    logout: () => dispatch(ActionCreators.logout()),
+    gearFetched: (gearsets) => dispatch(ActionCreators.gearFetched(gearsets))
   }
 }
+
+const wireToStore = (component) => connect(mapStateToProps, mapDispatchToProps)(component);
 
 const PSN = "psn";
 const Xbox = "xbox";
@@ -20,10 +33,14 @@ const Platforms = {
   Xbox
 };
 
-
 const LoginForm = React.createClass({
-  mixins: [LinkedStateMixin, History],
-  getInitialState() {
+  mixins: [LinkedStateMixin],
+  getDefaultProps () {
+    return {
+      doLogin: function(username, password, platform) {}
+    };
+  },
+  getInitialState () {
     return {
       username: "",
       password: "",
@@ -31,28 +48,18 @@ const LoginForm = React.createClass({
       error: false
     }
   },
-  changePlatform(platform) {
+  changePlatform (platform) {
     const form = this;
     return function() {
       form.setState({platform: platform});
     };
   },
-  onSubmit(event) {
+  onSubmit (event) {
     event.preventDefault();
     const { username, password, platform } = this.state;
-    request
-        .post(`/bng/auth/login`)
-        .send({username, password, platform})
-        .end((err, resp) => {
-          if(err) {
-            this.setState({error: true});
-          } else {
-            this.history.pushState(null, "/");
-          }
-
-        });
+    this.props.doLogin(username, password, platform);
   },
-  render() {
+  render () {
     return (
         <div>
           <h2>Load your gear.</h2>
@@ -76,30 +83,27 @@ const LoginForm = React.createClass({
   }
 });
 
-
 const GearTiles = React.createClass({
-  getDefaultProps() {
+  getDefaultProps () {
     return {
       items: [],
       iconPrefix: "https://www.bungie.net"
     };
   },
-  render() {
+  render () {
     return (
         <ul>
           { this.props.items.map(i => (
-              <li key={i.itemHash}>
+              <li key={i.summary.itemId}>
                 <img title={i.itemName} src={`${this.props.iconPrefix}${i.icon}`}/>
               </li>)) }
         </ul>
     );
-
   }
 });
 
-
 const Gearset = React.createClass({
-  getDefaultProps() {
+  getDefaultProps () {
     return {
       owner: "",
       helmet: [],
@@ -114,7 +118,7 @@ const Gearset = React.createClass({
       ghost: []
     };
   },
-  render() {
+  render () {
     return (
         <div className="gearset">
           <h1>Gearset: {this.props.owner}</h1>
@@ -143,66 +147,84 @@ const Gearset = React.createClass({
         </div>
     );
   }
-
 });
 
-
-const UserDetail = React.createClass({
-  ignoreLastFetch: false,
-
-  getInitialState() {
-    return {gearsets: []};
+const UserDetail = wireToStore(React.createClass({
+  mixins: [History],
+  fetchGear () {
+    request
+        .get(`/bng/gear/${this.props.user.platform}/${this.props.user.membershipId}`)
+        .end((err, resp) => {
+          this.props.gearFetched(resp.body.gearsets)
+        });
   },
-
   componentDidMount () {
-    this.fetchInventory();
+    if (!this.props.user) {
+      this.history.pushState(null, '/login');
+    } else {
+      this.fetchGear();
+    }
   },
-
-  componentDidUpdate () {
-      this.fetchInventory();
-  },
-
-  componentWillUnmount () {
-    this.ignoreLastFetch = true
-  },
-
-  fetchInventory () {
-    request.get("/bng/gear", (err, resp) => {
-      console.debug(resp);
-      if (!this.ignoreLastFetch) {
-        //const gearsets = resp.body.toons.concat(resp.body.vault);
-        //this.setState({ gearsets: gearsets });
-      }
-    });
-
-  },
-
-  render() {
+  render () {
     return (
         <div>
           <h1>Gear</h1>
           <ul>
-            {this.state.gearsets.map(x => (<li><Gearset props={x} key={x.owner}/></li>))}
+            {this.props.gearsets.map(x => (<li key={x.owner}><Gearset {...x}/></li>))}
           </ul>
-          <pre>{JSON.stringify(this.state, 2)}</pre>
         </div>
     );
   }
-});
+}));
 
-
-const Login = React.createClass({
-  render() {
+const Login = wireToStore(React.createClass({
+  mixins: [History],
+  authenticate (username, password, platform) {
+    request
+        .post('/bng/auth/login')
+        .send({username, password, platform})
+        .end((err, resp) => {
+          if (err) {
+            this.props.loginFailed(`Login Failed: ${resp.text}`);
+          } else {
+            this.props.loggedIn({
+              membershipId: resp.body.membershipId,
+              displayName: resp.body.displayName,
+              platform
+            });
+            this.history.pushState(null, "/");
+          }
+        });
+  },
+  render () {
     return (
-          <LoginForm/>
+        <div>
+          <LoginForm doLogin={this.authenticate}/>
+          {this.props.loginFailure ? (<p>Aww snap! {this.props.loginFailure}</p>) : ''}
+        </div>
     );
   }
-});
+}));
 
+const Logout = wireToStore(React.createClass({
+  mixins: [History],
+  doLogout() {
+    this.props.logout();
+    this.history.pushState(null, '/login');
+  },
+  componentDidMount() {
+    this.doLogout();
+  },
+  componentWillReceiveProps() {
+    this.doLogout();
+  },
+  render: () => (<div>Cya!</div>)
+}));
 
 export default {
   pages: {
     Login: Login,
+    Logout: Logout,
     UserDetail: UserDetail
   }
 };

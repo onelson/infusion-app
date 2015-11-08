@@ -1,23 +1,15 @@
 import keyMirror from 'keymirror';
 
 export const ActionTypes = keyMirror({
-  AUTHENTICATE: null,
+  LOGGED_IN: null,
+  LOGIN_FAILED: null,
   LOGOUT: null,
-  FETCH_GEAR: null
+  GEAR_FETCHED: null
 });
 
-export const Actions = {
-  authenticate (username, password) {
-    return {
-      type: ActionTypes.AUTHENTICATE,
-      username,
-      password
-    };
-  },
-  logout () {
-    return { type: ActionTypes.LOGOUT };
-  },
-  fetchGear () {
-    return { type: ActionTypes.FETCH_GEAR };
-  }
+export const ActionCreators = {
+  loggedIn: (user) => ({ type: ActionTypes.LOGGED_IN, user }),
+  loginFailed: (reason) => ({ type: ActionTypes.LOGIN_FAILED, reason }),
+  logout: () => ({ type: ActionTypes.LOGOUT }),
+  gearFetched: (gearsets) => ({ type: ActionTypes.GEAR_FETCHED, gearsets })
 };
