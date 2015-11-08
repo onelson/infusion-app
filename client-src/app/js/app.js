@@ -1,14 +1,13 @@
+import createBrowserHistory from 'history/lib/createBrowserHistory';
 import React from 'react';
 import ReactDOM from 'react-dom';
-import { IndexRoute, Router, Route, Link, NoMatch } from 'react-router';
-import { History } from 'react-router';
-import createBrowserHistory from 'history/lib/createBrowserHistory';
+import { IndexRoute, Router, Route, Link, NoMatch, History } from 'react-router';
 import { createStore, combineReducers } from 'redux';
 import { Provider } from 'react-redux';
 
 import { user, gearsets, initialState, loginFailure } from './afc/reducers';
 import { ActionCreators } from './afc/actions';
-import infusion from 'afc/infusion';
+import pages from 'afc/pages';
 
 const rootReducer = combineReducers({ loginFailure, user, gearsets });
 const store = createStore(rootReducer, initialState);
@@ -41,13 +40,13 @@ const App = React.createClass({
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute name="gear" component={infusion.pages.UserDetail}/>
+    <IndexRoute name="gear" component={pages.UserDetail}/>
     <Route name="login"
            path="/login"
-           component={infusion.pages.Login}/>
+           component={pages.Login}/>
     <Route name="logout"
            path="/logout"
-           component={infusion.pages.Logout}/>
+           component={pages.Logout}/>
 
     <Route path="*" component={NoMatch}/>
   </Route>);
