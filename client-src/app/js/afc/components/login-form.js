@@ -11,6 +11,7 @@ const Platforms = {
 };
 
 const LoginForm = React.createClass({
+  displayName: 'LoginForm',
   mixins: [LinkedStateMixin],
   getDefaultProps () {
     return {

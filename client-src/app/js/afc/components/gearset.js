@@ -3,6 +3,7 @@ import React from 'react';
 import GearTiles from './gear-tiles';
 
 const Gearset = React.createClass({
+  displayName: 'Gearset',
   getDefaultProps () {
     return {
       owner: "",

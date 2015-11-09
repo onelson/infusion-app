@@ -20,8 +20,12 @@ function mapDispatchToProps(dispatch) {
 }
 
 const UserDetail = React.createClass({
+  displayName: 'UserDetail',
   mixins: [History],
   componentDidMount () {
+    this.checkLogin();
+  },
+  checkLogin () {
     if (!this.props.user) {
       this.history.pushState(null, '/login');
     } else {
@@ -36,6 +40,7 @@ const UserDetail = React.createClass({
         });
   },
   render () {
+    const username = this.props.user ? this.props.user.displayName : null;
     return (
         <div>
           <div className="title-bar">
@@ -45,7 +50,7 @@ const UserDetail = React.createClass({
 
             <span className="right">
               <span className="welcome-message">
-                Hi, {this.props.user.displayName}!
+                Hi, {username}!
               </span>
               <span>
                 (<Link to="/logout">Logout</Link>)

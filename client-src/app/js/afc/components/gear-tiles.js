@@ -1,6 +1,7 @@
 import React from 'react';
 
 const GearTiles = React.createClass({
+  displayName: 'GearTile',
   getDefaultProps () {
     return {
       items: [],

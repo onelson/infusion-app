@@ -21,6 +21,7 @@ const unsubscribe = store.subscribe(() =>
 );
 
 const App = React.createClass({
+  displayName: 'App',
   mixins: [History],
   propTypes: {
     children: React.PropTypes.object.isRequired
@@ -35,7 +36,8 @@ const App = React.createClass({
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute name="gear" component={pages.UserDetail}/>
+    <IndexRoute name="gear"
+                component={pages.UserDetail}/>
     <Route name="login"
            path="/login"
            component={pages.Login}/>

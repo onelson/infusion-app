@@ -21,6 +21,7 @@ function mapDispatchToProps(dispatch) {
 }
 
 const Login = React.createClass({
+  displayName: 'Login',
   mixins: [History],
   authenticate (username, password, platform) {
     request

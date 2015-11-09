@@ -12,6 +12,7 @@ function mapDispatchToProps(dispatch) {
 }
 
 const Logout = React.createClass({
+  displayName: 'Logout',
   mixins: [History],
   doLogout() {
     this.props.logout();
