@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import request from 'superagent';
 
 import { ActionCreators } from '../actions';
-import Gearset from  '../components/gearset';
+import Bucket from  '../components/bucket';
 
 function mapStateToProps(state) {
   return {
@@ -39,8 +39,33 @@ const UserDetail = React.createClass({
           this.props.gearFetched(resp.body.gearsets)
         });
   },
+
+  getBuckets() {
+    if (!this.props.gearsets.length) return [];
+
+    const bucketNames = [
+      "helmet",
+      "chest",
+      "arms",
+      "boots",
+      "classItem",
+      "artifact",
+      "primaryWeapon",
+      "specialWeapon",
+      "heavyWeapon",
+      "ghost"];
+
+    return bucketNames
+        .map(name => ({
+          name: name,
+          items: Array.prototype.concat.apply([], this.props.gearsets.map(x => x[name]))
+        }));
+  },
+
   render () {
+    const buckets = this.getBuckets();
     const username = this.props.user ? this.props.user.displayName : null;
+    console.log(buckets);
     return (
         <div>
           <div className="title-bar">
@@ -58,9 +83,8 @@ const UserDetail = React.createClass({
             </span>
           </div>
           <h1>Gear</h1>
-          <ul>
-            {this.props.gearsets.map(x => (<li key={x.owner}><Gearset {...x}/></li>))}
-          </ul>
+          {buckets.length ? '' : 'loading...'}
+          {buckets.map(x => (<Bucket {...x} key={x.name}/>))}
         </div>
     );
   }
