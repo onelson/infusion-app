@@ -6,37 +6,42 @@ import request from 'superagent';
 import { ActionCreators } from '../actions';
 import LoginForm from '../components/login-form';
 
-function mapStateToProps(state) {
+function mapStateToProps (state) {
   return {
-    loginFailure: state.loginFailure,
-    user: state.user
+    loginFailure: state.loginFailure
   };
 }
 
-function mapDispatchToProps(dispatch) {
+function mapDispatchToProps (dispatch) {
   return {
-    loggedIn: (user) => dispatch(ActionCreators.loggedIn(user)),
-    loginFailed: (reason) => dispatch(ActionCreators.loginFailed(reason))
-  }
+    loginFailed: (reason) => dispatch(ActionCreators.loginFailed(reason)),
+    loggedIn: (user) => dispatch(ActionCreators.loggedIn(user))
+  };
 }
 
 const Login = React.createClass({
   displayName: 'Login',
   mixins: [History],
+  propTypes: {
+    loggedIn: React.PropTypes.func.isRequired,
+    loginFailed: React.PropTypes.func.isRequired,
+    loginFailure: React.PropTypes.any
+  },
   authenticate (username, password, platform) {
     request
         .post('/bng/auth/login')
-        .send({username, password, platform})
+        .send({ username, password, platform })
         .end((err, resp) => {
           if (err) {
             this.props.loginFailed(`Login Failed: ${resp.text}`);
-          } else {
+          }
+          else {
             this.props.loggedIn({
               membershipId: resp.body.membershipId,
               displayName: resp.body.displayName,
               platform
             });
-            this.history.pushState(null, "/");
+            this.history.pushState(null, '/');
           }
         });
   },

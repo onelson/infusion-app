@@ -3,7 +3,8 @@ import { ActionTypes } from './actions';
 export const initialState = {
   loginFailure: null,
   user: localStorage.user ? JSON.parse(localStorage.user) : null,
-  gearsets: []
+  gearsets: [],
+  solutions: []
 };
 
 export function loginFailure (state = initialState.loginFailure, action) {
@@ -32,6 +33,15 @@ export function gearsets (state = initialState.gearsets, action) {
   switch (action.type) {
     case ActionTypes.GEAR_FETCHED:
       return action.gearsets;
+    default:
+      return state;
+  }
+}
+
+export function solutions (state = initialState.solutions, action) {
+  switch (action.type) {
+    case ActionTypes.SOLUTIONS_FETCHED:
+      return action.solutions;
     default:
       return state;
   }

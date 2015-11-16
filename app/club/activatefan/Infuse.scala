@@ -1,7 +1,7 @@
 package club.activatefan
 
 
-object Infuse { // thanks apsu!
+object Infuse {
 
   val COST = 3
 

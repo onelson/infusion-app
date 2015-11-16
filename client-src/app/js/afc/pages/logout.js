@@ -5,21 +5,27 @@ import request from 'superagent';
 
 import { ActionCreators } from '../actions';
 
-function mapDispatchToProps(dispatch) {
+function mapDispatchToProps (dispatch) {
   return {
     logout: () => dispatch(ActionCreators.logout())
-  }
+  };
 }
 
 const Logout = React.createClass({
   displayName: 'Logout',
   mixins: [History],
-  doLogout() {
+  propTypes: {
+    logout: React.PropTypes.func.isRequired
+  },
+  componentDidMount () {
+    this.doLogout();
+  },
+  componentDidUpdate () {
+    this.doLogout();
+  },
+  doLogout () {
     this.props.logout();
     this.history.pushState(null, '/login');
-  },
-  componentDidMount() {
-    this.doLogout();
   },
   render: () => (<div>Cya!</div>)
 });

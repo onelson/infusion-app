@@ -38,13 +38,15 @@ const routes = (
   <Route path="/" component={App}>
     <IndexRoute name="gear"
                 component={pages.UserDetail}/>
+    <Route name="item-detail"
+           path="/gear/:itemId"
+           component={pages.ItemDetail}/>
     <Route name="login"
            path="/login"
            component={pages.Login}/>
     <Route name="logout"
            path="/logout"
            component={pages.Logout}/>
-
     <Route path="*" component={NoMatch}/>
   </Route>);
 
