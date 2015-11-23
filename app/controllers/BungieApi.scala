@@ -191,87 +191,29 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       response: WSResponse => {
         val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
         dbItems.map { implicit dbi =>
-
-          val itemsByToon: Map[Int, Seq[ItemSummary]] =
             (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
-//              .filter(js => Buckets.GearSlots.contains((js \ "bucketHash").as[Long]))
               .map(_.asOpt[ItemSummary])
               .filter(_.isDefined)
-              .map { case Some(summary) => summary }
-              .groupBy(_.characterIndex)
-
-          itemsByToon.map {
-            case (idx, summaries) =>
-
-              // FIXME: dropping any summaries that we don't have details for.
-              // Should do an extra lookup or something instead
-              val details: Seq[ItemDetail] = summaries
-                .map(
-                  summary => dbi.get(summary.itemHash) match {
+              .map {
+                case Some(summary) =>
+                  dbi.get(summary.itemHash) match {
                     case Some(dbItem) => Some(ItemDetail(summary, dbItem))
                     case _ =>
                       Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
                       None
                   }
-                )
-                .filter(_.isDefined)
-                .map { case Some(detail) => detail }
-
-                Gearset(idx.toString, details.groupBy(_.bucketTypeHash))
+              }.filter(x => {
+              x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
+              }).map {
+                case Some(detail) => (detail.summary.itemId, detail)
               }
-        }.map { gearsets => Ok(Json.obj(
+        }.map { gear =>
+          Ok(Json.obj(
             "toons" -> toons,
-            "gearsets" -> gearsets
+            "gear" -> Json.toJson(gear.toMap)
           ))
         }
       }
     }
   }
-}
-
-
-final case class Gearset(
-    owner: String,
-    helmet: Seq[ItemDetail],
-    chest: Seq[ItemDetail],
-    arms: Seq[ItemDetail],
-    boots: Seq[ItemDetail],
-    classItem: Seq[ItemDetail],
-    artifact: Seq[ItemDetail],
-    primary: Seq[ItemDetail],
-    special: Seq[ItemDetail],
-    heavy: Seq[ItemDetail],
-    ghost: Seq[ItemDetail])
-
-
-object Gearset {
-
-  def apply(owner: String, items: Map[Long, Seq[ItemDetail]]) = new Gearset(
-    owner,
-    helmet = items.getOrElse(Buckets.Helmet, Nil),
-    chest = items.getOrElse(Buckets.Chest, Nil),
-    arms = items.getOrElse(Buckets.Arms, Nil),
-    boots = items.getOrElse(Buckets.Boots, Nil),
-    classItem = items.getOrElse(Buckets.ClassItem, Nil),
-    artifact = items.getOrElse(Buckets.Artifact, Nil),
-    primary = items.getOrElse(Buckets.PrimaryWeapon, Nil),
-    special = items.getOrElse(Buckets.SpecialWeapon, Nil),
-    heavy = items.getOrElse(Buckets.HeavyWeapon, Nil),
-    ghost = items.getOrElse(Buckets.Ghost, Nil)
-  )
-
-  implicit val writes: Writes[Gearset] = (
-    (JsPath \ "owner").write[String] and
-    (JsPath \ "helmet").write[Seq[ItemDetail]] and
-    (JsPath \ "chest").write[Seq[ItemDetail]] and
-    (JsPath \ "arms").write[Seq[ItemDetail]] and
-    (JsPath \ "boots").write[Seq[ItemDetail]] and
-    (JsPath \ "classItem").write[Seq[ItemDetail]] and
-    (JsPath \ "artifact").write[Seq[ItemDetail]] and
-    (JsPath \ "primaryWeapon").write[Seq[ItemDetail]] and
-    (JsPath \ "specialWeapon").write[Seq[ItemDetail]] and
-    (JsPath \ "heavyWeapon").write[Seq[ItemDetail]] and
-    (JsPath \ "ghost").write[Seq[ItemDetail]]
-  )(unlift(Gearset.unapply))
-
 }

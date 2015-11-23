@@ -12,6 +12,6 @@ export const ActionCreators = {
   loggedIn: (user) => ({ type: ActionTypes.LOGGED_IN, user }),
   loginFailed: (reason) => ({ type: ActionTypes.LOGIN_FAILED, reason }),
   logout: () => ({ type: ActionTypes.LOGOUT }),
-  gearFetched: (gearsets) => ({ type: ActionTypes.GEAR_FETCHED, gearsets }),
+  gearFetched: (gear) => ({ type: ActionTypes.GEAR_FETCHED, gear }),
   solutionsFetched: (solutions) => ({ type: ActionTypes.GEAR_FETCHED, solutions })
 };

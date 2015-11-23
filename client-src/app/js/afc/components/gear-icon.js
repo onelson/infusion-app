@@ -9,6 +9,9 @@ export default React.createClass({
   },
   render () {
     const { item } = this.props;
-    return (<img title={item.itemName} src={`${ICON_PREFIX}${item.icon}`}/>);
+
+    return (
+        <img title={item.itemName} src={`${ICON_PREFIX}${item.icon}`}/>
+    );
   }
 });

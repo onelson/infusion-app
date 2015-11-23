@@ -8,7 +8,7 @@ import GearIcon from '../components/gear-icon';
 
 function mapStateToProps (state) {
   return {
-    gearsets: state.gearsets,
+    gear: state.gear,
     solutions: state.solutions,
     user: state.user
   };
@@ -23,7 +23,7 @@ function mapDispatchToProps (dispatch) {
 const ItemDetail = React.createClass({
   displayName: 'ItemDetail',
   propTypes: {
-    gearsets: React.PropTypes.array.isRequired,
+    gear: React.PropTypes.object.isRequired,
     solutions: React.PropTypes.array.isRequired,
     user: React.PropTypes.object.isRequired
   },
@@ -31,8 +31,7 @@ const ItemDetail = React.createClass({
     console.debug('updating');
   },
   render () {
-    // TODO: store gear in object by itemId
-    const item = this.props.gearsets[this.props.params.itemId];
+    const item = this.props.gear[this.props.params.itemId];
     return (
       <div>
         <GearIcon item={item}/>

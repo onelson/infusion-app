@@ -5,11 +5,11 @@ import { IndexRoute, Router, Route, Link, NoMatch, History } from 'react-router'
 import { createStore, combineReducers } from 'redux';
 import { Provider } from 'react-redux';
 
-import { user, gearsets, initialState, loginFailure } from './afc/reducers';
+import { user, gear, initialState, loginFailure, solutions } from './afc/reducers';
 import { ActionCreators } from './afc/actions';
 import pages from 'afc/pages';
 
-const rootReducer = combineReducers({ loginFailure, user, gearsets });
+const rootReducer = combineReducers({ loginFailure, user, gear, solutions });
 const store = createStore(rootReducer, initialState);
 
 // Log the initial state

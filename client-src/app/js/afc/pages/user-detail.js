@@ -8,23 +8,37 @@ import Bucket from '../components/bucket';
 
 function mapStateToProps (state) {
   return {
-    gearsets: state.gearsets,
+    gear: state.gear,
     user: state.user
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return {
-    gearFetched: (gearsets) => dispatch(ActionCreators.gearFetched(gearsets))
+    gearFetched: (gear) => dispatch(ActionCreators.gearFetched(gear))
   };
 }
+
+// bucket hash -> name
+const bucketTypes = {
+  3448274439: 'Helmet',
+  14239492: 'Chest',
+  3551918588: 'Gloves',
+  20886954: 'Boots',
+  1585787867: 'Class Item',
+  434908299: 'Artifact',
+  1498876634: 'Primary Weapon',
+  2465295065: 'Special Weapon',
+  953998645: 'Heavy Weapon',
+  4023194814: 'Ghost'
+};
 
 const UserDetail = React.createClass({
   displayName: 'UserDetail',
   mixins: [History],
   propTypes: {
+    gear: React.PropTypes.object.isRequired,
     gearFetched: React.PropTypes.func.isRequired,
-    gearsets: React.PropTypes.array.isRequired,
     user: React.PropTypes.object.isRequired
   },
   componentDidMount () {
@@ -46,31 +60,34 @@ const UserDetail = React.createClass({
             console.error(err);
           }
           else {
-            this.props.gearFetched(resp.body.gearsets);
+            this.props.gearFetched(resp.body.gear);
           }
         });
   },
   getBuckets () {
-    if (!this.props.gearsets.length) {
-      return [];
-    }
+    const byBucket = {
+      3448274439: [],
+      14239492: [],
+      3551918588: [],
+      20886954: [],
+      1585787867: [],
+      434908299: [],
+      1498876634: [],
+      2465295065: [],
+      953998645: [],
+      4023194814: []
+    };
 
-    const bucketNames = [
-      'helmet',
-      'chest',
-      'arms',
-      'boots',
-      'classItem',
-      'artifact',
-      'primaryWeapon',
-      'specialWeapon',
-      'heavyWeapon',
-      'ghost'];
+    Object.keys(this.props.gear).map(key => this.props.gear[key]).forEach(item => {
+      byBucket[item.bucketTypeHash].push(item);
+    });
 
-    return bucketNames
-        .map(name => ({
-          name: name,
-          items: Array.prototype.concat.apply([], this.props.gearsets.map(x => x[name]))
+
+
+    return Object.keys(byBucket)
+        .map(bucketHash => ({
+          name: bucketTypes[bucketHash],
+          items: byBucket[bucketHash]
         }));
   },
 
