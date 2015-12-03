@@ -16,7 +16,7 @@ libraryDependencies ++= Seq(
   specs2 % Test,
   "org.json4s" %% "json4s-native" % "3.3.0",
   "org.xerial" % "sqlite-jdbc" % "3.8.11.2",
-  "com.typesafe.slick" %% "slick" % "3.0.3"
+  "com.typesafe.slick" %% "slick" % "3.1.0"
 )
 
 resolvers += "scalaz-bintray" at "http://dl.bintray.com/scalaz/releases"

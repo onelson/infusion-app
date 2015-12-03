@@ -2,7 +2,8 @@ package controllers
 
 
 import javax.inject.Inject
-
+import java.io._
+import java.util.zip.ZipInputStream
 
 import scala.concurrent.Future
 
@@ -182,6 +183,41 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       .withHeaders(requestHeadersFromSession(request.session): _*)
   }
 
+  def dbInfo() = Action.async {
+    ws.url("http://www.bungie.net/Platform/Destiny/Manifest/")
+      .withHeaders("X-api-key" -> API_KEY).get().flatMap {
+      resp =>
+        val dbVersion = (resp.json \ "Response" \ "version").as[String]
+        val dbUrl = "http://www.bungie.net" + (resp.json \ "Response" \ "mobileWorldContentPaths" \ "en").as[String]
+
+        // TODO: check tmp for existing db file for this version.
+        // Skip the download if we already have it.
+
+        ws.url(dbUrl).get().flatMap {
+          dbResp =>
+            val buf = new Array[Byte](1024)
+            val zis = new ZipInputStream(new ByteArrayInputStream(dbResp.bodyAsBytes))
+            val entry = zis.getNextEntry
+            val out = File.createTempFile(s"bungie-db.$dbVersion.", ".sqlite")
+            val fos = new FileOutputStream(out.getAbsolutePath)
+            var len = zis.read(buf)
+
+            while (len > 0) {
+              fos.write(buf, 0, len)
+              len = zis.read(buf)
+            }
+
+            fos.close()
+
+            val db = Database.forURL(s"jdbc:sqlite:${out.getAbsolutePath}")
+            val q = sql"select count(json) from DestinyInventoryItemDefinition".as[Int]
+            db.run(q.head).map { result =>
+              Ok(result.toString)
+            }
+        }
+    }
+  }
+
 
   def gear(platform: String, membershipId: String) = Action.async { implicit request =>
 
@@ -189,7 +225,8 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
 
     fetch(s"/$membershipType/Account/$membershipId/Items/").get().flatMap {
       response: WSResponse => {
-        val toons = (response.json \ "Response" \ "data" \ "characters").as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
+        val toons = (response.json \ "Response" \ "data" \ "characters")
+          .as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
         dbItems.map { implicit dbi =>
             (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
               .map(_.asOpt[ItemSummary])
