@@ -1,4 +1,3 @@
-GET     /bng/db-info                              controllers.BungieApi.dbInfo
 POST    /bng/auth/login                           controllers.Auth.authenticate
 GET     /bng/gear/:platform/:membershipId         controllers.BungieApi.gear(platform, membershipId)
 # Map static resources from the /public folder to the /assets URL path

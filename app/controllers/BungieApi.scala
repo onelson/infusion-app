@@ -5,7 +5,10 @@ import javax.inject.Inject
 import java.io._
 import java.util.zip.ZipInputStream
 
-import scala.concurrent.Future
+import play.api.cache.CacheApi
+
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 import play.api.Configuration
 import play.api.mvc.{Request, Session, Action, Controller}
@@ -135,14 +138,12 @@ object Buckets {
 }
 
 
-class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controller {
+class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi) extends Controller {
 
   val API_KEY =
     config.getString("afc.bungieApiKey").fold("")((v: String) => v)
   val DATA_DIR  =
     config.getString("afc.bungieDataDir").fold("")((v: String) => v)
-  val DB_FILE  =
-    config.getString("afc.bungieDbFile").fold("")((v: String) => v)
 
   val membershipTypes = Map("psn" -> "TigerPSN", "xbox" -> "TigerXbox")
 
@@ -153,7 +154,6 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       ("bungleatk", session("bungleatk")),
       ("bungledid", session("bungledid"))
     )
-
     Seq(
       ("x-api-key", API_KEY),
       ("x-csrf", session("bungled")),
@@ -161,19 +161,11 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
     )
   }
 
-  implicit val getItemResult:GetResult[DbItem] =
+  implicit val getItemResult: GetResult[DbItem] =
     GetResult(r => DbItem(r.nextString))
 
-  val db = Database.forURL(s"jdbc:sqlite:$DATA_DIR$DB_FILE")
-
-  def getItems = {
-    val query = sql"select json from DestinyInventoryItemDefinition".as[DbItem]
-    db.run(query)
-  }
-
-  implicit val dbItems: Future[Map[Long, DbItem]] = getItems.map { (items: Seq[DbItem]) =>
-      items.map(i => (i.itemHash, i)).toMap[Long, DbItem]
-    }
+  def lookupItem(id: Long): Future[Option[DbItem]] =
+    getDestinyDb.run(sql"select json from DestinyInventoryItemDefinition where id = ${id.toInt}".as[DbItem].headOption)
 
   def fetch(path: String)(implicit request: Request[_]) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
@@ -183,23 +175,27 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       .withHeaders(requestHeadersFromSession(request.session): _*)
   }
 
-  def dbInfo() = Action.async {
-    ws.url("http://www.bungie.net/Platform/Destiny/Manifest/")
-      .withHeaders("X-api-key" -> API_KEY).get().flatMap {
-      resp =>
-        val dbVersion = (resp.json \ "Response" \ "version").as[String]
-        val dbUrl = "http://www.bungie.net" + (resp.json \ "Response" \ "mobileWorldContentPaths" \ "en").as[String]
+  def getDestinyDb = {
+    val (dbVersion, dbUrl) = cache.getOrElse[(String, String)]("dbInfo", 1.hour) {
+      Await.result(
+        ws.url("http://www.bungie.net/Platform/Destiny/Manifest/")
+        .withHeaders("X-api-key" -> API_KEY).get().map { resp =>
+        ((resp.json \ "Response" \ "version").as[String],
+          "http://www.bungie.net" + (resp.json \ "Response" \ "mobileWorldContentPaths" \ "en").as[String])
+      }, 30.seconds)
+    }
 
-        // TODO: check tmp for existing db file for this version.
-        // Skip the download if we already have it.
+    val dbFile = new File(DATA_DIR, s"$dbVersion.sqlite")
 
-        ws.url(dbUrl).get().flatMap {
+    if (!dbFile.exists()) {
+      Logger.debug("Fetching new db file.")
+      Await.result(
+        ws.url(dbUrl).get().map {
           dbResp =>
             val buf = new Array[Byte](1024)
             val zis = new ZipInputStream(new ByteArrayInputStream(dbResp.bodyAsBytes))
-            val entry = zis.getNextEntry
-            val out = File.createTempFile(s"bungie-db.$dbVersion.", ".sqlite")
-            val fos = new FileOutputStream(out.getAbsolutePath)
+            val _ = zis.getNextEntry
+            val fos = new FileOutputStream(dbFile.getAbsolutePath)
             var len = zis.read(buf)
 
             while (len > 0) {
@@ -208,14 +204,12 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
             }
 
             fos.close()
-
-            val db = Database.forURL(s"jdbc:sqlite:${out.getAbsolutePath}")
-            val q = sql"select count(json) from DestinyInventoryItemDefinition".as[Int]
-            db.run(q.head).map { result =>
-              Ok(result.toString)
-            }
-        }
+        },
+        30.seconds
+      )
     }
+
+    Database.forURL(s"jdbc:sqlite:$dbFile")
   }
 
 
@@ -227,23 +221,24 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration) extends Controll
       response: WSResponse => {
         val toons = (response.json \ "Response" \ "data" \ "characters")
           .as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
-        dbItems.map { implicit dbi =>
-            (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
-              .map(_.asOpt[ItemSummary])
-              .filter(_.isDefined)
-              .map {
-                case Some(summary) =>
-                  dbi.get(summary.itemHash) match {
-                    case Some(dbItem) => Some(ItemDetail(summary, dbItem))
-                    case _ =>
-                      Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
-                      None
-                  }
-              }.filter(x => {
-              x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
-              }).map {
-                case Some(detail) => (detail.summary.itemId, detail)
+
+        Future.sequence((response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
+          .map(_.asOpt[ItemSummary])
+          .filter(_.isDefined)
+          .map {
+            case Some(summary) =>
+              lookupItem(summary.itemHash).map {
+                case Some(dbItem) => Some(ItemDetail(summary, dbItem))
+                case _ =>
+                  Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
+                  None
               }
+          }).map { maybeItems =>
+            maybeItems.filter(x => {
+              x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
+            }).map {
+              case Some(detail) => (detail.summary.itemId, detail)
+            }
         }.map { gear =>
           Ok(Json.obj(
             "toons" -> toons,
