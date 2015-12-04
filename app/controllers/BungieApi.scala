@@ -6,6 +6,7 @@ import java.io._
 import java.util.zip.ZipInputStream
 
 import play.api.cache.CacheApi
+import slick.driver.SQLiteDriver
 
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
@@ -164,8 +165,17 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
   implicit val getItemResult: GetResult[DbItem] =
     GetResult(r => DbItem(r.nextString))
 
-  def lookupItem(id: Long): Future[Option[DbItem]] =
-    getDestinyDb.run(sql"select json from DestinyInventoryItemDefinition where id = ${id.toInt}".as[DbItem].headOption)
+  def lookupItems(ids: Seq[Int]): Future[Map[Int, DbItem]] = {
+    val q =
+      sql"""
+         SELECT id, json
+         FROM DestinyInventoryItemDefinition
+         WHERE id IN (#${ids.mkString(", ")})
+        """
+    destinyDb.run(q.as[(Int, DbItem)]).map(_.toMap)
+  }
+
+
 
   def fetch(path: String)(implicit request: Request[_]) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
@@ -175,7 +185,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
       .withHeaders(requestHeadersFromSession(request.session): _*)
   }
 
-  def getDestinyDb = {
+  lazy val destinyDb = {
     val (dbVersion, dbUrl) = cache.getOrElse[(String, String)]("dbInfo", 1.hour) {
       Await.result(
         ws.url("http://www.bungie.net/Platform/Destiny/Manifest/")
@@ -208,7 +218,6 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
         30.seconds
       )
     }
-
     Database.forURL(s"jdbc:sqlite:$dbFile")
   }
 
@@ -222,23 +231,29 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
         val toons = (response.json \ "Response" \ "data" \ "characters")
           .as[Seq[JsValue]].map(js => (js \ "characterBase").as[Toon])
 
-        Future.sequence((response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
-          .map(_.asOpt[ItemSummary])
-          .filter(_.isDefined)
-          .map {
-            case Some(summary) =>
-              lookupItem(summary.itemHash).map {
-                case Some(dbItem) => Some(ItemDetail(summary, dbItem))
-                case _ =>
-                  Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
-                  None
-              }
-          }).map { maybeItems =>
-            maybeItems.filter(x => {
-              x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
-            }).map {
-              case Some(detail) => (detail.summary.itemId, detail)
+        val summaries =
+          (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
+            .map(_.asOpt[ItemSummary])
+            .filter(_.isDefined)
+            .map {
+              case Some(summary) => summary
             }
+
+        lookupItems(summaries.map(_.itemHash.toInt)).map { lookups =>
+          summaries.map { summary =>
+            lookups.get(summary.itemHash.toInt).flatMap {
+              case dbItem => Some(ItemDetail(summary, dbItem))
+              case _ =>
+                Logger.warn(s"no details found for itemHash: ${summary.itemHash}")
+                None
+            }
+          }
+        }.map { maybeItems =>
+          maybeItems.filter(x => {
+            x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
+          }).map {
+            case Some(detail) => (detail.summary.itemId, detail)
+          }
         }.map { gear =>
           Ok(Json.obj(
             "toons" -> toons,
