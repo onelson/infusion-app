@@ -1,6 +1,7 @@
 import keyMirror from 'keymirror';
 
 export const ActionTypes = keyMirror({
+  ACTIVITIES_FETCHED: null,
   LOGGED_IN: null,
   LOGIN_FAILED: null,
   LOGOUT: null,
@@ -9,6 +10,7 @@ export const ActionTypes = keyMirror({
 });
 
 export const ActionCreators = {
+  activitiesFetched: (activities) => ({ type: ActionTypes.ACTIVITIES_FETCHED, activities }),
   loggedIn: (user) => ({ type: ActionTypes.LOGGED_IN, user }),
   loginFailed: (reason) => ({ type: ActionTypes.LOGIN_FAILED, reason }),
   logout: () => ({ type: ActionTypes.LOGOUT }),

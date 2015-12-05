@@ -1,15 +1,10 @@
 import { createStore, combineReducers } from 'redux';
 
 import initialState from './initial-state';
-import { user, gear, loginFailure, solutions } from './reducers';
+import * as reducers from './reducers';
 
 const store = createStore(
-    combineReducers({
-      loginFailure,
-      user,
-      gear,
-      solutions
-    }),
+    combineReducers(reducers),
     initialState);
 
 // Log the initial state

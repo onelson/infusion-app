@@ -6,7 +6,7 @@ import { Provider } from 'react-redux';
 
 import store from './afc/store';
 import { ActionCreators } from './afc/actions';
-import pages from 'afc/pages';
+import pages from './afc/pages';
 
 const App = React.createClass({
   displayName: 'App',
@@ -24,8 +24,11 @@ const App = React.createClass({
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute name="gear"
-                component={pages.UserDetail}/>
+    <IndexRoute name="activities"
+                component={pages.Activities}/>
+    <Route name="user-detail"
+           path="/gear"
+           component={pages.UserDetail}/>
     <Route name="item-detail"
            path="/gear/:itemId"
            component={pages.ItemDetail}/>
