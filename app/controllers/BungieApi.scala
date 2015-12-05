@@ -165,17 +165,26 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
   implicit val getItemResult: GetResult[DbItem] =
     GetResult(r => DbItem(r.nextString))
 
-  def lookupItems(ids: Seq[Int]): Future[Map[Int, DbItem]] = {
+  def lookupActivities(ids: Seq[Long]): Future[Map[Long, JsValue]] = {
     val q =
       sql"""
-         SELECT id, json
-         FROM DestinyInventoryItemDefinition
-         WHERE id IN (#${ids.mkString(", ")})
+         SELECT json
+         FROM DestinyActivityDefinition
+         WHERE id IN (#${ids.map(_.toInt).mkString(", ")})
         """
-    destinyDb.run(q.as[(Int, DbItem)]).map(_.toMap)
+    destinyDb.run(q.as[String])
+      .map(x => x.toSeq.map(Json.parse).map(js => (js \ "activityHash").as[Long]-> js ).toMap)
   }
 
-
+  def lookupItems(ids: Seq[Long]): Future[Map[Long, DbItem]] = {
+    val q =
+      sql"""
+         SELECT json
+         FROM DestinyInventoryItemDefinition
+         WHERE id IN (#${ids.map(_.toInt).mkString(", ")})
+        """
+    destinyDb.run(q.as[DbItem]).map(_.toSeq.map(x => x.itemHash -> x).toMap)
+  }
 
   def fetch(path: String)(implicit request: Request[_]) = {
     val url = "https://www.bungie.net/Platform/Destiny" + path
@@ -239,7 +248,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
               case Some(summary) => summary
             }
 
-        lookupItems(summaries.map(_.itemHash.toInt)).map { lookups =>
+        lookupItems(summaries.map(_.itemHash)).map { lookups =>
           summaries.map { summary =>
             lookups.get(summary.itemHash.toInt).flatMap {
               case dbItem => Some(ItemDetail(summary, dbItem))
@@ -263,4 +272,48 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi)
       }
     }
   }
+
+  def activities = Action.async {
+    ws.url("http://www.bungie.net/Platform/Destiny/Advisors")
+      .withQueryString("definitions" -> "true")
+      .withHeaders("x-api-key" -> API_KEY).get().flatMap { resp =>
+      val data = resp.json \ "Response" \ "data"
+
+      val nightfallDetailId = (data \ "nightfall" \ "specificActivityHash").as[Long]
+      val nightfallSkullId = (data \ "nightfall" \ "activityBundleHash").as[Long]
+      val skullIndexes =
+        ((data \ "nightfall" \ "tiers").as[Seq[JsValue]].head \"skullIndexes").as[Seq[Int]]
+
+      val dailyCrucibleId = (data \ "dailyCrucible" \ "activityBundleHash").as[Long]
+      val dailyStoryId = (data \ "dailyChapter" \ "activityBundleHash").as[Long]
+      val weeklyCrucibleId = (data \ "weeklyCrucible" \\ "activityBundleHash").head.as[Long]
+
+      lookupActivities(Seq(
+        nightfallSkullId,
+        nightfallDetailId,
+        dailyCrucibleId,
+        dailyStoryId,
+        weeklyCrucibleId
+      )).map { lookups =>
+
+        val skulls = (lookups(nightfallSkullId) \ "skulls").as[Seq[JsValue]]
+
+        val nightfallDetails = lookups(nightfallDetailId)
+
+        val payload = Json.obj(
+          "nightfall" -> Json.obj(
+            "name" -> (nightfallDetails \ "activityName").as[String],
+            "skulls" -> skullIndexes.map(skulls(_))
+          ),
+          "dailyStory" -> (lookups(dailyStoryId) \ "activityName").as[String],
+          "dailyCrucible" -> (lookups(dailyCrucibleId) \ "activityName").as[String],
+          "weeklyCrucible" -> (lookups(weeklyCrucibleId) \ "activityName").as[String]
+        )
+
+        Ok(payload)
+      }
+
+    }
+  }
+
 }
