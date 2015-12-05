@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link, History } from 'react-router';
 import { connect } from 'react-redux';
-import request from 'superagent';
-
+import client from '../client';
 import { ActionCreators } from '../actions';
 import GearIcon from '../components/gear-icon';
 
@@ -24,19 +23,31 @@ const ItemDetail = React.createClass({
   displayName: 'ItemDetail',
   propTypes: {
     gear: React.PropTypes.object.isRequired,
+    params: React.PropTypes.object,
     solutions: React.PropTypes.array.isRequired,
     user: React.PropTypes.object.isRequired
   },
-  componentDidUpdate (nextProps, nextState) {
-    console.debug('updating');
+  componentDidMount () {
+    this.checkLogin();
+  },
+  checkLogin () {
+    if (!this.props.user) {
+      this.history.pushState(null, '/login');
+    }
+    else {
+      client.fetchGear(this.props.user);
+    }
   },
   render () {
     const item = this.props.gear[this.props.params.itemId];
-    return (
-      <div>
-        <GearIcon item={item}/>
-      </div>
-    );
+    if (item) {
+      return (
+          <div>
+            <GearIcon item={item}/>
+          </div>
+      );
+    }
+    return (<div></div>);
   }
 });
 

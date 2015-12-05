@@ -1,11 +1,5 @@
 import { ActionTypes } from './actions';
-
-export const initialState = {
-  loginFailure: null,
-  user: localStorage.user ? JSON.parse(localStorage.user) : null,
-  gear: {},
-  solutions: []
-};
+import initialState from './initial-state';
 
 export function loginFailure (state = initialState.loginFailure, action) {
   switch (action.type) {

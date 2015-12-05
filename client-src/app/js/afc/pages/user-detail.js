@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link, History } from 'react-router';
 import { connect } from 'react-redux';
-import request from 'superagent';
 
 import { ActionCreators } from '../actions';
 import Bucket from '../components/bucket';
+import client from '../client';
 
 function mapStateToProps (state) {
   return {
@@ -44,25 +44,16 @@ const UserDetail = React.createClass({
   componentDidMount () {
     this.checkLogin();
   },
+  componentWillReceiveProps () {
+    this.checkLogin();
+  },
   checkLogin () {
     if (!this.props.user) {
       this.history.pushState(null, '/login');
     }
     else {
-      this.fetchGear();
+      client.fetchGear(this.props.user);
     }
-  },
-  fetchGear () {
-    request
-        .get(`/bng/gear/${this.props.user.platform}/${this.props.user.membershipId}`)
-        .end((err, resp) => {
-          if (err) {
-            console.error(err);
-          }
-          else {
-            this.props.gearFetched(resp.body.gear);
-          }
-        });
   },
   getBuckets () {
     const byBucket = {
@@ -81,8 +72,6 @@ const UserDetail = React.createClass({
     Object.keys(this.props.gear).map(key => this.props.gear[key]).forEach(item => {
       byBucket[item.bucketTypeHash].push(item);
     });
-
-
 
     return Object.keys(byBucket)
         .map(bucketHash => ({

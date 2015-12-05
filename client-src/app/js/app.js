@@ -2,23 +2,11 @@ import createBrowserHistory from 'history/lib/createBrowserHistory';
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { IndexRoute, Router, Route, Link, NoMatch, History } from 'react-router';
-import { createStore, combineReducers } from 'redux';
 import { Provider } from 'react-redux';
 
-import { user, gear, initialState, loginFailure, solutions } from './afc/reducers';
+import store from './afc/store';
 import { ActionCreators } from './afc/actions';
 import pages from 'afc/pages';
-
-const rootReducer = combineReducers({ loginFailure, user, gear, solutions });
-const store = createStore(rootReducer, initialState);
-
-// Log the initial state
-console.log(store.getState());
-
-// Every time the state changes, log it
-const unsubscribe = store.subscribe(() =>
-    console.log(store.getState())
-);
 
 const App = React.createClass({
   displayName: 'App',
