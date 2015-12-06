@@ -13,15 +13,16 @@ const App = React.createClass({
   displayName: 'App',
   mixins: [History],
   propTypes: {
-    children: React.PropTypes.object.isRequired
+    header: React.PropTypes.object,
+    main: React.PropTypes.object
   },
   render () {
     return (
       <Provider store={store}>
         <div>
-          <NavBar/>
+          {this.props.header || ''}
           <div className="grid-container">
-          {this.props.children}
+          {this.props.main || ''}
           </div>
         </div>
       </Provider>
@@ -31,20 +32,17 @@ const App = React.createClass({
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute name="activities"
-                component={pages.Activities}/>
-    <Route name="user-detail"
-           path="/gear"
-           component={pages.UserDetail}/>
-    <Route name="item-detail"
-           path="/gear/:itemId"
-           component={pages.ItemDetail}/>
-    <Route name="login"
-           path="/login"
-           component={pages.Login}/>
-    <Route name="logout"
-           path="/logout"
+    <IndexRoute components={{ main: pages.Activities, header: NavBar }} />
+    <Route path="gear"
+           components={{ main: pages.UserDetail, header: NavBar }}/>
+    <Route path="gear/item/:itemId"
+           components={{ main: pages.ItemDetail, header: NavBar }}/>
+
+    <Route path="login"
+           components={{ main: pages.Login, header: NavBar }}/>
+    <Route path="logout"
            component={pages.Logout}/>
+
     <Route path="*" component={NoMatch}/>
   </Route>);
 

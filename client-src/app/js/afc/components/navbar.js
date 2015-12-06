@@ -1,6 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
-import { Link } from 'react-router';
+import { IndexLink, Link } from 'react-router';
 
 function mapStateToProps (state) {
   return {
@@ -20,10 +20,10 @@ const NavBar = React.createClass({
           Hi, {this.props.user.displayName}!
         </span>
         {' '}
-        <span>(<Link to="/logout">Logout</Link>)</span>
+        <span>(<Link to="logout">Logout</Link>)</span>
       </span>
     ) : (
-      <Link to="/login">Login</Link>
+      <Link to="login" activeClassName="active">Login</Link>
     );
   },
   render () {
@@ -33,8 +33,8 @@ const NavBar = React.createClass({
           AFC
         </span>
         <ul className="links center">
-          <li><Link to="/">Activities</Link></li>
-          <li><Link to="/gear">Gear</Link></li>
+          <li><IndexLink to="/" activeClassName="active">Activities</IndexLink></li>
+          <li><Link to="/gear" activeClassName="active">Gear</Link></li>
         </ul>
         <span className="right">
           {this.getUserLinks()}

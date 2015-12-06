@@ -22,7 +22,7 @@ const Bucket = React.createClass({
           item => (
           <li key={item.summary.itemId}
               className={classNames('tile', { completed: item.summary.isGridComplete })}>
-            <Link to={`/gear/${item.summary.itemId}`}>
+            <Link to={`/gear/item/${item.summary.itemId}`}>
               <GearIcon item={item}/>
             </Link>
           </li>
