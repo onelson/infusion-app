@@ -48,11 +48,6 @@ const Login = React.createClass({
   render () {
     return (
         <div>
-          <div className="title-bar">
-            <span className="left title">
-              <Link to="/">Infusion Solver</Link>
-            </span>
-          </div>
           <LoginForm doLogin={this.authenticate}/>
           {this.props.loginFailure ? (<p>Aww snap! {this.props.loginFailure}</p>) : ''}
         </div>

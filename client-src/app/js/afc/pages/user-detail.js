@@ -79,23 +79,8 @@ const UserDetail = React.createClass({
 
   render () {
     const buckets = this.getBuckets();
-    const username = this.props.user ? this.props.user.displayName : null;
     return (
         <div>
-          <div className="title-bar">
-            <span className="left title">
-              <Link to="/">Infusion Solver</Link>
-            </span>
-
-            <span className="right">
-              <span className="welcome-message">
-                Hi, {username}!
-              </span>
-              <span>
-                (<Link to="/logout">Logout</Link>)
-              </span>
-            </span>
-          </div>
           <h1>Gear</h1>
           {buckets.length ? '' : 'loading...'}
           {buckets.map(x => (<Bucket {...x} key={x.name}/>))}

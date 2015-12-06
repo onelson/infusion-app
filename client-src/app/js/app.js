@@ -7,6 +7,7 @@ import { Provider } from 'react-redux';
 import store from './afc/store';
 import { ActionCreators } from './afc/actions';
 import pages from './afc/pages';
+import NavBar from './afc/components/navbar';
 
 const App = React.createClass({
   displayName: 'App',
@@ -17,8 +18,14 @@ const App = React.createClass({
   render () {
     return (
       <Provider store={store}>
+        <div>
+          <NavBar/>
+          <div className="grid-container">
           {this.props.children}
-      </Provider>);
+          </div>
+        </div>
+      </Provider>
+    );
   }
 });
 

@@ -1,10 +1,23 @@
 @import 'settings';
 @import 'foundation';
 
-.title-bar .welcome-message {
-  margin-right: 0.5rem;
-}
+.title-bar {
+  .welcome-message {
+    //margin-right: 0.5rem;
+  }
 
+  .links {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+    display: inline;
+    li {
+      display: inline-block;
+      padding: 0 0.25rem;
+    }
+  }
+
+}
 
 .bucket {
   ul {
