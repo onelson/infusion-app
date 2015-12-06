@@ -1,6 +1,6 @@
 import React from 'react';
 
-const ICON_PREFIX = 'https://www.bungie.net';
+import { ICON_PREFIX } from '../../settings';
 
 export default React.createClass({
   displayName: 'GearIcon',
