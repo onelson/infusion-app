@@ -44,9 +44,6 @@ const UserDetail = React.createClass({
   componentDidMount () {
     this.checkLogin();
   },
-  componentWillReceiveProps () {
-    this.checkLogin();
-  },
   checkLogin () {
     if (!this.props.user) {
       this.history.pushState(null, '/login');
@@ -83,7 +80,6 @@ const UserDetail = React.createClass({
   render () {
     const buckets = this.getBuckets();
     const username = this.props.user ? this.props.user.displayName : null;
-    console.log(buckets);
     return (
         <div>
           <div className="title-bar">

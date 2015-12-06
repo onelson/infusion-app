@@ -243,11 +243,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi,
 
         val summaries =
           (response.json \ "Response" \ "data" \ "items").as[Seq[JsObject]]
-            .map(_.asOpt[ItemSummary])
-            .filter(_.isDefined)
-            .map {
-              case Some(summary) => summary
-            }
+            .flatMap(_.asOpt[ItemSummary])
 
         lookupItems(summaries.map(_.itemHash)).map { lookups =>
           summaries.map { summary =>
@@ -259,11 +255,10 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi,
             }
           }
         }.map { maybeItems =>
-          maybeItems.filter(x => {
-            x.isDefined && Buckets.GearSlots.contains(x.fold(0l)(_.bucketTypeHash))
-          }).map {
-            case Some(detail) => (detail.summary.itemId, detail)
-          }
+          maybeItems
+            .flatten
+            .filter(x => Buckets.GearSlots.contains(x.bucketTypeHash))
+            .map(detail => (detail.summary.itemId, detail))
         }.map { gear =>
           Ok(Json.obj(
             "toons" -> toons,

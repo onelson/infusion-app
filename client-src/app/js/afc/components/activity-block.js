@@ -14,7 +14,7 @@ const ActivityBlock = React.createClass({
   render () {
     const skulls = (
         this.props.skulls.length
-            ? this.props.skulls.map(skull => <Skull { ...skull } />)
+            ? this.props.skulls.map(skull => <Skull { ...skull } key={skull.displayName}/>)
             : ''
     );
     return (
