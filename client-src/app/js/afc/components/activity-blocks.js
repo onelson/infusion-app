@@ -1,5 +1,6 @@
 import React from 'react';
 import ActivityBlock from './activity-block';
+import { ICON_PREFIX } from '../../settings';
 
 const ActivityBlocks = React.createClass({
   displayName: 'ActivityBlocks',
@@ -20,7 +21,12 @@ const ActivityBlocks = React.createClass({
                 activityType="Weekly Crucible"
                 activityName={this.props.activities.weeklyCrucible}/>
           </div>
-          <div className="grid-block">
+          <div className="grid-block"
+               style={{
+               width: '874px',
+               height: '349px',
+               background: `url("${ICON_PREFIX}${this.props.activities.nightfall.image}")`
+               }}>
             <ActivityBlock
                 activityType="Nightfall"
                 activityName={this.props.activities.nightfall.name}
