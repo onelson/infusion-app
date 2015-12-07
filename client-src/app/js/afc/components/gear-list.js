@@ -1,21 +1,11 @@
 import React from 'react';
-import { Link, History } from 'react-router';
 import { connect } from 'react-redux';
 
-import { ActionCreators } from '../actions';
 import Bucket from '../components/bucket';
-import client from '../client';
 
 function mapStateToProps (state) {
   return {
-    gear: state.gear,
-    user: state.user
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return {
-    gearFetched: (gear) => dispatch(ActionCreators.gearFetched(gear))
+    gear: state.gear
   };
 }
 
@@ -33,24 +23,10 @@ const bucketTypes = {
   4023194814: 'Ghost'
 };
 
-const UserDetail = React.createClass({
-  displayName: 'UserDetail',
-  mixins: [History],
+const GearList = React.createClass({
+  displayName: 'GearList',
   propTypes: {
-    gear: React.PropTypes.object.isRequired,
-    gearFetched: React.PropTypes.func.isRequired,
-    user: React.PropTypes.object.isRequired
-  },
-  componentDidMount () {
-    this.checkLogin();
-  },
-  checkLogin () {
-    if (!this.props.user) {
-      this.history.pushState(null, '/login');
-    }
-    else {
-      client.fetchGear(this.props.user);
-    }
+    gear: React.PropTypes.object.isRequired
   },
   getBuckets () {
     const byBucket = {
@@ -76,17 +52,15 @@ const UserDetail = React.createClass({
           items: byBucket[bucketHash]
         }));
   },
-
   render () {
     const buckets = this.getBuckets();
+
     return (
-        <div>
-          <h1>Gear</h1>
-          {buckets.length ? '' : 'loading...'}
-          {buckets.map(x => (<Bucket {...x} key={x.name}/>))}
-        </div>
-    );
+      <div>
+        {buckets.length ? '' : 'loading...'}
+        {buckets.map(x => (<Bucket {...x} key={x.name}/>))}
+      </div>);
   }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(UserDetail);
+export default connect(mapStateToProps)(GearList);

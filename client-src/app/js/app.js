@@ -7,22 +7,22 @@ import { Provider } from 'react-redux';
 import store from './afc/store';
 import { ActionCreators } from './afc/actions';
 import pages from './afc/pages';
-import NavBar from './afc/components/navbar';
+
+import { NavBar, GearList, GearDetail } from './afc/components';
 
 const App = React.createClass({
   displayName: 'App',
   mixins: [History],
   propTypes: {
-    header: React.PropTypes.object,
-    main: React.PropTypes.object
+    children: React.PropTypes.object
   },
   render () {
     return (
       <Provider store={store}>
         <div>
-          {this.props.header || ''}
+          <NavBar/>
           <div className="grid-container">
-          {this.props.main || ''}
+          {this.props.children}
           </div>
         </div>
       </Provider>
@@ -32,14 +32,15 @@ const App = React.createClass({
 
 const routes = (
   <Route path="/" component={App}>
-    <IndexRoute components={{ main: pages.Activities, header: NavBar }} />
-    <Route path="gear"
-           components={{ main: pages.UserDetail, header: NavBar }}/>
-    <Route path="gear/item/:itemId"
-           components={{ main: pages.ItemDetail, header: NavBar }}/>
+    <IndexRoute component={pages.Activities} />
+
+    <Route path="gear" component={pages.Gear}>
+      <IndexRoute component={GearList}/>
+      <Route path="item/:itemId" component={GearDetail}/>
+    </Route>
 
     <Route path="login"
-           components={{ main: pages.Login, header: NavBar }}/>
+           component={pages.Login}/>
     <Route path="logout"
            component={pages.Logout}/>
 

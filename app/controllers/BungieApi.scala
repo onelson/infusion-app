@@ -300,6 +300,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi,
           val payload = Json.obj(
             "nightfall" -> Json.obj(
               "name" -> (nightfallDetails \ "activityName").as[String],
+              "image" -> (nightfallDetails \ "pgcrImage").as[String],
               "skulls" -> skullIndexes.map(skulls(_))
             ),
             "dailyStory" -> (lookups(dailyStoryId) \ "activityName").as[String],
