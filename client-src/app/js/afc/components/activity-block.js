@@ -14,16 +14,16 @@ const ActivityBlock = React.createClass({
   render () {
     const skulls = (
         this.props.skulls.length
-            ? this.props.skulls.map(skull => <Skull { ...skull } key={skull.displayName}/>)
+            ? (<div className="grid-block skulls">
+                {this.props.skulls.map(skull => <Skull { ...skull } key={skull.displayName}/>)}
+               </div>)
             : ''
     );
     return (
-        <div className="grid-content">
+        <div className="grid-content activity">
           <h2>{this.props.activityType}</h2>
           <p>{this.props.activityName}</p>
-          <div className="grid-block">
-            {skulls}
-          </div>
+          {skulls}
         </div>
     );
   }

@@ -43,7 +43,20 @@
   }
 }
 
-.skull {
-  text-align: center;
-  padding: 0.5rem;
+.activity {
+  position: relative;
+
+  .skulls {
+    padding: 0.25rem;
+    position: absolute;
+    height: 100px;
+    bottom: 0;
+    background: #444;
+    opacity: 0.8;
+
+    .skull {
+      text-align: center;
+      padding: 0.5rem;
+    }
+  }
 }
