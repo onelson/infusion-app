@@ -1,19 +1,54 @@
+import { round, modes } from 'stround';
 
-function permutate (low, high, mid) {
-  const res = [[low, high]];
+const EXOTIC = 6;
+const LEGENDARY = 5;
 
-  // TODO
-  return res;
+function combinations (arr, k) {
+  let i,
+      subI,
+      ret = [],
+      sub,
+      next;
+  for(i = 0; i < arr.length; i++){
+    if(k === 1){
+      ret.push( [ arr[i] ] );
+    }
+    else {
+      sub = combinations(arr.slice(i+1, arr.length), k-1);
+      for(subI = 0; subI < sub.length; subI++ ){
+        next = sub[subI];
+        next.unshift(arr[i]);
+        ret.push( next );
+      }
+    }
+  }
+  return ret;
 }
 
-function infuse (item, other) {}
+function permutate (low, high, mid) {
+  return [[low, high]].push(...mid.map(x => combinations(mid, x))
+          .map(x => [low].push(...x).push(high)));
+}
 
-function walk (items) {
-  const res = items.reduce((x, y) => infuse(x, y));
-  return { value: res, cost: items.length - 1, steps: items };
+export function infuse (item, other, exotic) {
+  const diff = other - item;
+  const [ comp, scale ] = (exotic) ? [ 4, 0.7 ] : [ 6, 0.8 ];
+
+  if (diff <= comp) {
+    return other.value;
+  }
+  return item + round(String(diff * scale), 0, modes.HALF_EVEN);
 }
 
 export function report (subject, bucket) {
+
+  const walk = (items) => {
+    const res = items
+        .map(x => x.value)
+        .reduce((x, y) => infuse(x, y, exotic=subject.tierType === EXOTIC));
+    return { value: res, cost: items.length - 1, steps: items };
+  };
+
   const items = bucket
       .filter((x) => x.value > subject.value)
       .sort((a, b) => a.value - b.value);
