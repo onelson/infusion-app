@@ -10,15 +10,15 @@ function combinations (arr, k) {
       sub,
       next;
   for(i = 0; i < arr.length; i++){
-    if(k === 1){
-      ret.push( [ arr[i] ] );
+    if(k === 1) {
+      ret.push([arr[i]]);
     }
     else {
-      sub = combinations(arr.slice(i+1, arr.length), k-1);
-      for(subI = 0; subI < sub.length; subI++ ){
+      sub = combinations(arr.slice(i + 1, arr.length), k - 1);
+      for (subI = 0; subI < sub.length; subI++) {
         next = sub[subI];
         next.unshift(arr[i]);
-        ret.push( next );
+        ret.push(next);
       }
     }
   }
@@ -57,11 +57,24 @@ export function report (subject, bucket) {
 
   const perms = permutate(subject, high, items);
 
-  const bestValue = { value: 0, cost: Infinity, steps: [] };
-  const bestMarks = { value: 0, cost: Infinity, steps: [] };
+  let bestValue = { value: 0, cost: Infinity, steps: [] };
+  let bestMarks = { value: 0, cost: Infinity, steps: [] };
 
   perms.sort((a, b) => a[0].value - b[0].value).map(walk).forEach(result => {
-    // mutate "bests"
+    if (result.value > bestValue.value ||
+        (result.value === bestValue.value && result.marks < bestValue.marks)) {
+      bestValue = result;
+    }
+
+    if (result.marks < bestMarks.marks ||
+        (result.marks === bestMarks.marks && result.value > bestMarks.value)) {
+      bestMarks = result;
+    }
   });
+
+  return {
+    bestValue,
+    bestMarks
+  };
 
 }
