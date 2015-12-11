@@ -66,7 +66,7 @@ final case class ItemDetail(
     tierTypeName: String,
     itemName: String,
     icon: String,
-    qualityLevel: Int
+    value: Int
 )
 
 object ItemDetail {
@@ -78,7 +78,8 @@ object ItemDetail {
       tierTypeName=(dbItem.json \ "tierTypeName").as[String],
       itemName=(dbItem.json \ "itemName").as[String],
       icon=(dbItem.json \ "icon").as[String],
-      qualityLevel=(dbItem.json \ "qualityLevel").as[Int])
+      value=summary.value
+    )
   }
 
   implicit val writes: Writes[ItemDetail] = (
@@ -88,7 +89,7 @@ object ItemDetail {
     (JsPath \ "tierTypeName").write[String] and
     (JsPath \ "itemName").write[String] and
     (JsPath \ "icon").write[String] and
-    (JsPath \ "qualityLevel").write[Int]
+    (JsPath \ "value").write[Int]
   )(unlift(ItemDetail.unapply))
 
 }

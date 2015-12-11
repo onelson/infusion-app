@@ -3,6 +3,8 @@ import React from 'react';
 import { Link } from 'react-router';
 import GearIcon from './gear-icon';
 
+const LEGENDARY = 5;
+
 const Bucket = React.createClass({
   displayName: 'Bucket',
   propTypes: {
@@ -18,7 +20,7 @@ const Bucket = React.createClass({
   render () {
     return (<div className="bucket">
       <h2>{this.props.name}</h2>
-      <ul>{this.props.items.map(
+      <ul>{this.props.items.filter(item => item.tierType >= LEGENDARY).map(
           item => (
           <li key={item.summary.itemId}
               className={classNames('tile', { completed: item.summary.isGridComplete })}>
