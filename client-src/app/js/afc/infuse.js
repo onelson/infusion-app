@@ -75,10 +75,8 @@ export function report (subject, others) {
 
   const items = others.filter(x => x.value > subject.value).sort((a, b) => a.value - b.value);
   const high = items.pop();
-  console.log(high.value, subject.value);
   calculateSteps(subject, high, items)
       .sort((a, b) => a[0].value - b[0].value).map(walk).forEach(result => {
-    console.log(result);
     if (result.value > bestValue.value ||
         (result.value === bestValue.value && result.marks < bestValue.marks)) {
       bestValue = result;
