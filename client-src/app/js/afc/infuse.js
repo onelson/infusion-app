@@ -46,6 +46,7 @@ function combinations (set) {
 }
 
 function calculateSteps (low, high, mid) {
+  // TODO: rewrite with Array.push() via nested loops
   const middles = mid.map(x => combinations(mid, x));
   return [[low, high]]
       .concat(middles.map(x => [low].concat(...x).concat(high)));

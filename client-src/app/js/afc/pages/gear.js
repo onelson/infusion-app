@@ -1,4 +1,5 @@
 import React from 'react';
+import PureRenderMixin from 'react-addons-pure-render-mixin';
 import { Link, History } from 'react-router';
 import { connect } from 'react-redux';
 
@@ -20,9 +21,10 @@ function mapDispatchToProps (dispatch) {
 
 const Gear = React.createClass({
   displayName: 'Gear',
-  mixins: [History],
+  mixins: [History, PureRenderMixin],
   propTypes: {
     children: React.PropTypes.object,
+    gear: React.PropTypes.object,
     gearFetched: React.PropTypes.func.isRequired,
     user: React.PropTypes.object.isRequired
   },

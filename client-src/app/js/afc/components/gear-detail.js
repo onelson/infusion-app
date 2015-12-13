@@ -7,16 +7,11 @@ import GearIcon from '../components/gear-icon';
 import { report, infuse } from '../infuse';
 
 function mapStateToProps (state) {
+  const { itemId } = state.router.params;
   return {
+    itemId,
     gear: state.gear,
-    solutions: state.solutions,
     user: state.user
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return {
-    solutionsFetched: (solutions) => dispatch(ActionCreators.solutionsFetched(solutions))
   };
 }
 
@@ -24,22 +19,21 @@ const GearDetail = React.createClass({
   displayName: 'GearDetail',
   propTypes: {
     gear: React.PropTypes.object.isRequired,
-    params: React.PropTypes.object,
-    solutions: React.PropTypes.array.isRequired
+    itemId: React.PropTypes.string.isRequired
   },
   render () {
-    const item = this.props.gear[this.props.params.itemId];
+    const item = this.props.gear[this.props.itemId];
     if (item) {
       const bucket = Object.keys(this.props.gear)
           .map(x => this.props.gear[x])
           .filter(x => x.bucketTypeHash === item.bucketTypeHash && x !== item);
+
       const data = report(item, bucket);
       const { bestCost, bestValue } = data;
 
       const solutions = (
           bestCost.value !== bestValue.value ? [bestValue, bestCost] : [bestCost]
       ).filter(x => x.steps.length);
-
       return (
           <div>
             <h3>{item.itemName}</h3>
@@ -54,4 +48,4 @@ const GearDetail = React.createClass({
   }
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(GearDetail);
+export default connect(mapStateToProps)(GearDetail);

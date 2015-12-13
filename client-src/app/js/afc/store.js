@@ -1,11 +1,25 @@
-import { createStore, combineReducers } from 'redux';
+import { createHistory } from 'history';
+
+import { createStore, combineReducers, compose } from 'redux';
+import { routerStateReducer, reduxReactRouter } from 'redux-router';
 
 import initialState from './initial-state';
-import * as reducers from './reducers';
+import * as afcReducers from './reducers';
+import routes from './routes';
 
-const store = createStore(
-    combineReducers(reducers),
-    initialState);
+const reducer = combineReducers(
+    Object.assign(
+      {},
+      afcReducers,
+      { router: routerStateReducer }
+    ));
+
+const store = compose(
+    reduxReactRouter({
+      routes,
+      createHistory
+    })
+)(createStore)(reducer, initialState);
 
 // Log the initial state
 console.log(store.getState());

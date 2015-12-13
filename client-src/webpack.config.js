@@ -1,7 +1,7 @@
 require('es6-promise').polyfill();  // needed for node versions < 0.12
-var path = require("path");
+var path = require('path');
 var ExtractTextPlugin = require('extract-text-webpack-plugin');
-var webpack = require("webpack");
+var webpack = require('webpack');
 
 module.exports = {
   entry: {
@@ -12,15 +12,17 @@ module.exports = {
     new ExtractTextPlugin('[name].css'),
     new webpack.optimize.UglifyJsPlugin({
       compress: {
+        drop_debugger: false,
         warnings: false
       }
     })
   ],
-  devtool: "source-map",
+  devtool: 'eval-source-map',
+  //devtool: 'source-map',
   output : {
     path: path.resolve(__dirname, '../app/assets/dist/'),
-    filename: "[name].js",
-    chunkFilename: "[id].js"
+    filename: '[name].js',
+    chunkFilename: '[id].js'
   },
   resolve: {
     modulesDirectories: [ '.',
@@ -51,7 +53,7 @@ module.exports = {
           'style', // backup loader when not building .css file
           'css!sass?sourceMap' // loaders to preprocess CSS
         )},
-      //{ test: /\.scss/, loaders: ['style', "css?sourceMap", "sass?sourceMap"] },
+      //{ test: /\.scss/, loaders: ['style', 'css?sourceMap', 'sass?sourceMap'] },
       { test: /\.css$/, loaders: ExtractTextPlugin.extract(['style', 'css']) },
       { test: /\.png$/, loader: 'file' },
       { test: /\.woff$/, loader: 'file?prefix=fonts/' },
