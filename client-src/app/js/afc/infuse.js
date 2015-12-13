@@ -4,6 +4,7 @@ const COST = 3;
 const EXOTIC = 6;
 
 function k_combinations (set, k) {
+  console.time('generating combinations');
   var i, j, combs, head, tailcombs;
 
   if (k > set.length || k <= 0) {
@@ -30,26 +31,29 @@ function k_combinations (set, k) {
       combs.push(head.concat(tailcombs[j]));
     }
   }
-  return combs;
-}
-
-function combinations (set) {
-  var k, i, combs, k_combs;
-  combs = [];
-  for (k = 1; k <= set.length; k++) {
-    k_combs = k_combinations(set, k);
-    for (i = 0; i < k_combs.length; i++) {
-      combs.push(k_combs[i]);
-    }
-  }
+  console.timeEnd('generating combinations');
   return combs;
 }
 
 function calculateSteps (low, high, mid) {
-  // TODO: rewrite with Array.push() via nested loops
-  const middles = mid.map(x => combinations(mid, x));
-  return [[low, high]]
-      .concat(middles.map(x => [low].concat(...x).concat(high)));
+  console.time('calculateSteps');
+
+  console.debug('built step');
+  const ret = [[low, high]];
+
+  for (var i = 0; i < mid.length; i++) {
+    const values = k_combinations(mid[i], i + 1);
+    const record = [low];
+    for (var j = 0; j < values.length; j++) {
+      record.push(values[j]);
+    }
+    console.debug('built step');
+    record.push(high);
+    ret.push(record);
+  }
+  console.timeEnd('calculateSteps');
+  console.info(ret.length);
+  return ret;
 }
 
 export function infuse (baseValue, targetValue, exotic) {
@@ -63,6 +67,7 @@ export function infuse (baseValue, targetValue, exotic) {
 }
 
 export function report (subject, others) {
+  console.time('report');
 
   let bestValue = { value: 0, cost: Infinity, steps: [] };
   let bestCost = { value: 0, cost: Infinity, steps: [] };
@@ -78,6 +83,7 @@ export function report (subject, others) {
   const high = items.pop();
   calculateSteps(subject, high, items)
       .sort((a, b) => a[0].value - b[0].value).map(walk).forEach(result => {
+    console.debug('ranking result');
     if (result.value > bestValue.value ||
         (result.value === bestValue.value && result.marks < bestValue.marks)) {
       bestValue = result;
@@ -89,6 +95,7 @@ export function report (subject, others) {
     }
   });
 
+  console.timeEnd('report');
   return {
     bestValue,
     bestCost
