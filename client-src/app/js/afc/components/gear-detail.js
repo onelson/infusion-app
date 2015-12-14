@@ -28,19 +28,24 @@ const GearDetail = React.createClass({
           .map(x => this.props.gear[x])
           .filter(x => x.bucketTypeHash === item.bucketTypeHash && x !== item);
 
-      const data = report(item, bucket);
-      const { bestCost, bestValue } = data;
+      const result = report(item, bucket);
+      const solutions = [];
 
-      const solutions = (
-          bestCost.value !== bestValue.value ? [bestValue, bestCost] : [bestCost]
-      ).filter(x => x.steps.length);
+      if (result !== null) {
+        if (result.bestValue) {
+          solutions.push(result.bestValue);
+        }
+        solutions.push(result.bestCost);
+      }
+
       return (
           <div>
             <h3>{item.itemName}</h3>
             <GearIcon item={item}/>
-            <ul>
-              {solutions.map(x => <li key={x.value}><pre>{JSON.stringify(x, null, 2)}</pre></li>)}
-            </ul>
+            {solutions.length === 0
+                ? (<p>No solutions available.</p>)
+                : (<ul>{solutions.map(x => <li key={x.value}><pre>{JSON.stringify(x, null, 2)}</pre></li>)}</ul>)}
+
           </div>
       );
     }
