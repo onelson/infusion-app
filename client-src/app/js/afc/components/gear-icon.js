@@ -11,7 +11,7 @@ export default React.createClass({
     const { item } = this.props;
 
     return (
-        <img title={item.itemName} src={`${ICON_PREFIX}${item.icon}`}/>
+      <img title={item.itemName} src={`${ICON_PREFIX}${item.icon}`}/>
     );
   }
 });

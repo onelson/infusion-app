@@ -26,19 +26,35 @@
     flex-flow: wrap;
     list-style: none;
 
+
     .tile {
       margin: 2px;
-
       border: 3px solid whitesmoke;
+      width: 102px;
+
+      position: relative;
 
       &.completed {
         border-color: gold;
       }
 
-      cursor: pointer;
       img {
         width: 96px;
       }
+
+
+      .value {
+        font-size: 0.9rem;
+        position: absolute;
+        background: #444;
+        opacity: 0.8;
+        padding: 1px;
+
+        bottom: 0;
+        right: 0;
+      }
+
+
     }
   }
 }

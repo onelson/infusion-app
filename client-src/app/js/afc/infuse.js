@@ -37,20 +37,31 @@ function k_combinations (set, k) {
 
 function calculateSteps (low, high, mid) {
   console.time('calculateSteps');
+  console.log(low);
+  console.log(high);
+  console.log(mid.length);
 
   console.debug('built step');
-  const ret = [[low, high]];
 
+  const ret = [[low, high]];
   for (var i = 0; i < mid.length; i++) {
     const values = k_combinations(mid[i], i + 1);
     const record = [low];
     for (var j = 0; j < values.length; j++) {
       record.push(values[j]);
+
+      //for (var k = 0; k < values[j].length; k++) {
+      //  var arr = values[j][k];
+      //  record.push(arr);
+      //}
     }
+
     console.debug('built step');
     record.push(high);
+    console.info(record.length);
     ret.push(record);
   }
+
   console.timeEnd('calculateSteps');
   console.info(ret.length);
   return ret;
@@ -81,6 +92,7 @@ export function report (subject, others) {
 
   const items = others.filter(x => x.value > subject.value).sort((a, b) => a.value - b.value);
   const high = items.pop();
+  console.log([high, subject, items]);
   calculateSteps(subject, high, items)
       .sort((a, b) => a[0].value - b[0].value).map(walk).forEach(result => {
     console.debug('ranking result');

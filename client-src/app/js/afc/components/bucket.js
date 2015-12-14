@@ -27,6 +27,7 @@ const Bucket = React.createClass({
             <Link to={`/gear/item/${item.summary.itemId}`}>
               <GearIcon item={item}/>
             </Link>
+            <div className="value">{item.value}</div>
           </li>
           ))
       }</ul>
