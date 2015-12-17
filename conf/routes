@@ -1,6 +1,7 @@
-POST    /bng/auth/login                           controllers.Auth.authenticate
-GET     /bng/gear/:platform/:membershipId         controllers.BungieApi.gear(platform, membershipId)
-GET     /bng/activities                           controllers.BungieApi.activities
+POST    /bng/auth/login                             controllers.Auth.authenticate
+POST    /solve                                      controllers.BungieApi.solve
+GET     /bng/gear/:platform/:membershipId           controllers.BungieApi.gear(platform, membershipId)
+GET     /bng/activities                             controllers.BungieApi.activities
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file                               controllers.Assets.versioned(path="/public", file: Asset)
 # app bootstrap

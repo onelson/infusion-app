@@ -60,37 +60,49 @@ object ItemSummary {
 }
 
 final case class ItemDetail(
-    summary: ItemSummary,
+    itemHash: Long,
+    itemId: String,
+    characterIndex: Int,
+    isGridComplete: Boolean,
+    value: Int,
+    damageType: Int,
     bucketTypeHash: Long,
     tierType: Int,
     tierTypeName: String,
     itemName: String,
-    icon: String,
-    value: Int
+    icon: String
 )
 
 object ItemDetail {
   def apply(summary: ItemSummary, dbItem: DbItem) = {
     new ItemDetail(
-      summary=summary,
+      itemHash=summary.itemHash,
+      itemId=summary.itemId,
+      characterIndex=summary.characterIndex,
+      isGridComplete=summary.isGridComplete,
+      value=summary.value,
+      damageType=summary.damageType,
       bucketTypeHash=dbItem.bucketTypeHash,
       tierType=(dbItem.json \ "tierType").as[Int],
       tierTypeName=(dbItem.json \ "tierTypeName").as[String],
       itemName=(dbItem.json \ "itemName").as[String],
-      icon=(dbItem.json \ "icon").as[String],
-      value=summary.value
+      icon=(dbItem.json \ "icon").as[String]
     )
   }
 
-  implicit val writes: Writes[ItemDetail] = (
-    (JsPath \ "summary").write[ItemSummary] and
-    (JsPath \ "bucketTypeHash").write[Long] and
-    (JsPath \ "tierType").write[Int] and
-    (JsPath \ "tierTypeName").write[String] and
-    (JsPath \ "itemName").write[String] and
-    (JsPath \ "icon").write[String] and
-    (JsPath \ "value").write[Int]
-  )(unlift(ItemDetail.unapply))
+  implicit val format: Format[ItemDetail] = (
+    (JsPath \ "itemHash").format[Long] and
+    (JsPath \ "itemId").format[String] and
+    (JsPath \ "characterIndex").format[Int] and
+    (JsPath \ "isGridComplete").format[Boolean] and
+    (JsPath \ "value").format[Int] and
+    (JsPath \ "damageType").format[Int] and
+    (JsPath \ "bucketTypeHash").format[Long] and
+    (JsPath \ "tierType").format[Int] and
+    (JsPath \ "tierTypeName").format[String] and
+    (JsPath \ "itemName").format[String] and
+    (JsPath \ "icon").format[String]
+  )(ItemDetail.apply, unlift(ItemDetail.unapply))
 
 }
 
@@ -259,7 +271,7 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi,
           maybeItems
             .flatten
             .filter(x => Buckets.GearSlots.contains(x.bucketTypeHash))
-            .map(detail => (detail.summary.itemId, detail))
+            .map(detail => (detail.itemId, detail))
         }.map { gear =>
           Ok(Json.obj(
             "toons" -> toons,
@@ -314,6 +326,104 @@ class BungieApi @Inject() (ws: WSClient, config: Configuration, cache: CacheApi,
 
       }
     }
+  }
+
+  def solve = Action.async(BodyParsers.parse.json) { implicit request =>
+    val subject = (request.body \ "subject").as[ItemDetail]
+    val others = (request.body \ "others").as[Seq[ItemDetail]].filter(_.tierType >= Infuse.RARE).groupBy(_.value).map {
+      case (value, items) => items.sortBy(_.tierType).head
+    }.toSeq
+
+    assert(others.length < 20)
+
+    Infuse.report(subject, others).map { case (bestValue, bestCost) =>
+
+      val payload = Json.obj(
+        "bestValue" -> Json.toJson(bestValue),
+        "bestCost" -> Json.toJson(bestCost)
+      )
+
+      Ok(Json.toJson(payload))
+    }
+
+  }
+
+}
+
+final case class Solution(value: Int, cost: Int, steps: Seq[ItemDetail])
+
+object Solution {
+  implicit val format: Writes[Solution] = (
+      (JsPath \ "value").write[Int] and
+      (JsPath \ "cost").write[Int] and
+      (JsPath \ "steps").write[Seq[ItemDetail]]
+    )(unlift(Solution.unapply))
+}
+
+object Infuse {
+
+  val RARE = 4
+  val LEGENDARY = 5
+  val EXOTIC = 6
+  val COST = 3
+
+  def infuse(baseValue: Int, targetValue: Int, baseIsExotic: Boolean): Int = {
+    val diff = targetValue - baseValue
+    val (comp: Int, scale: Double) = if (baseIsExotic) ( 4, 0.7 )  else ( 6, 0.8 )
+
+    if (diff <= comp) {
+      targetValue
+    } else {
+      baseValue + math.BigDecimal(diff * scale).setScale(0, math.BigDecimal.RoundingMode.HALF_EVEN).toInt
+    }
+  }
+
+  def calculateSteps(low: ItemDetail, high: ItemDetail, items: Seq[ItemDetail]): Seq[Seq[ItemDetail]] = {
+    val head = Seq(low, high)
+    val tail = for {
+      i <- items.indices
+      middles <- items.combinations(i + 1)
+    } yield Seq(low) ++ middles.toSeq :+ high
+    head +: tail
+  }
+
+  def report(subject: ItemDetail, others: Seq[ItemDetail]): Future[(Option[Solution], Option[Solution])] = {
+    val items = others.filter(x => x.value > subject.value).sortBy(_.value)
+
+    def worst = Solution(0, Int.MaxValue, Nil)
+
+    var bestValue = worst
+    var bestCost = worst
+
+    Future {
+      if (items.nonEmpty) {
+        calculateSteps(subject, items.last, items.dropRight(1)).map { steps: Seq[ItemDetail] =>
+          val value = steps.par.map(_.value).reduce((x, y) => infuse(x, y, subject.tierType == EXOTIC))
+          Solution(value, (steps.length - 1) * COST, steps)
+        }.foreach { result: Solution =>
+
+          if (result.value > bestValue.value ||
+            (result.value == bestValue.value && result.cost < bestValue.cost)) {
+            bestValue = result
+          }
+
+          if (result.cost < bestCost.cost ||
+            (result.cost == bestCost.cost && result.value > bestCost.value)) {
+            bestCost = result
+          }
+        }
+
+        if (bestValue != bestCost) {
+          (Some(bestValue), Some(bestCost))
+        }
+        else {
+          (Some(bestValue), None)
+        }
+      } else {
+        (None, None)
+      }
+    }
+
   }
 
 }

@@ -21,35 +21,73 @@ const GearDetail = React.createClass({
     gear: React.PropTypes.object.isRequired,
     itemId: React.PropTypes.string.isRequired
   },
-  render () {
-    const item = this.props.gear[this.props.itemId];
-    if (item) {
-      const bucket = Object.keys(this.props.gear)
-          .map(x => this.props.gear[x])
-          .filter(x => x.bucketTypeHash === item.bucketTypeHash && x !== item);
+  getInitialState () {
+    return { fetching: false, solutions: [] };
+  },
+  componentDidMount () {
+    this.generateSolutions();
+  },
+  componentDidUpdate (prevProps) {
+    if (prevProps.itemId !== this.props.itemId) {
+      this.generateSolutions();
+    }
+  },
+  getItem () {
+    return this.props.gear[this.props.itemId];
+  },
+  generateSolutions () {
+    const item = this.getItem();
 
-      const result = report(item, bucket);
+    if (!item || this.state.fetching) {
+      return;
+    }
+
+    this.setState({ fetching: true });
+
+    const bucket = Object.keys(this.props.gear)
+        .map(x => this.props.gear[x])
+        .filter(x => x.bucketTypeHash === item.bucketTypeHash && x !== item);
+
+    report(item, bucket).end((err, resp) => {
+      this.setState({ fetching: false });
+
+      if (err) {
+        console.error(err);
+        return;
+      }
+
+      const result = resp.body;
       const solutions = [];
 
-      if (result !== null) {
-        if (result.bestValue) {
-          solutions.push(result.bestValue);
-        }
+      if (result.bestValue) {
+        solutions.push(result.bestValue);
+      }
+
+      if (result.bestCost) {
         solutions.push(result.bestCost);
       }
 
-      return (
-          <div>
-            <h3>{item.itemName}</h3>
-            <GearIcon item={item}/>
-            {solutions.length === 0
-                ? (<p>No solutions available.</p>)
-                : (<ul>{solutions.map(x => <li key={x.value}><pre>{JSON.stringify(x, null, 2)}</pre></li>)}</ul>)}
+      this.setState({ solutions });
+    });
 
-          </div>
-      );
+  },
+  render () {
+    const item = this.getItem();
+    if (!item) {
+      return (<div></div>);
     }
-    return (<div></div>);
+
+    const { solutions } = this.state;
+
+    return (
+      <div>
+        <h3>{item.itemName}</h3>
+        <GearIcon item={item}/>
+        {solutions.length === 0
+            ? (<p>No solutions available.</p>)
+            : (<ul>{solutions.map(x => <li key={x.value}><pre>{JSON.stringify(x, null, 2)}</pre></li>)}</ul>)}
+      </div>
+    );
   }
 });
 

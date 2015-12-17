@@ -22,9 +22,9 @@ const Bucket = React.createClass({
       <h2>{this.props.name}</h2>
       <ul>{this.props.items.filter(item => item.tierType >= LEGENDARY).map(
           item => (
-          <li key={item.summary.itemId}
-              className={classNames('tile', { completed: item.summary.isGridComplete })}>
-            <Link to={`/gear/item/${item.summary.itemId}`}>
+          <li key={item.itemId}
+              className={classNames('tile', { completed: item.isGridComplete })}>
+            <Link to={`/gear/item/${item.itemId}`}>
               <GearIcon item={item}/>
             </Link>
             <div className="value">{item.value}</div>
